@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Neutrals */
+  --color-ink: #14181f;
+  --color-ink-muted: #4b5567;
+  --color-ink-faint: #8890a0;
+  --color-paper: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #dde1e7;
+  --color-border-strong: #b9c0cb;
+
+  /* Primary accent — "signal" teal */
+  --color-signal: #0e6e5c;
+  --color-signal-strong: #0a5346;
+  --color-signal-soft: #e4f3ef;
+
+  /* Semantic states */
+  --color-flag: #b54708;
+  --color-flag-soft: #fdf0e4;
+  --color-danger: #c0293a;
+  --color-danger-soft: #fbe7e9;
+  --color-success: #0e6e5c;
+  --color-success-soft: #e4f3ef;
+
+  /* Match-type functional color coding */
+  --color-mt-broad: #4b5567;
+  --color-mt-broad-soft: #eceef1;
+  --color-mt-phrase: #0e6e5c;
+  --color-mt-phrase-soft: #e4f3ef;
+  --color-mt-exact: #7a3fc2;
+  --color-mt-exact-soft: #f1e9fb;
+  --color-mt-bmm: #8a6600;
+  --color-mt-bmm-soft: #faf3df;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

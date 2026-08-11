@@ -1,0 +1,78 @@
+"use client";
+
+import type { TextareaHTMLAttributes } from "react";
+import { cn } from "@/lib/cn";
+import { Counter } from "@/components/shared/Counter";
+
+export interface TextareaProps extends Omit<
+  TextareaHTMLAttributes<HTMLTextAreaElement>,
+  "id" | "value" | "onChange"
+> {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: boolean;
+  errorMessage?: string;
+  hideCount?: boolean;
+  countLabel?: (count: number) => string;
+}
+
+function countNonBlankLines(value: string): number {
+  if (!value) return 0;
+  return value.split("\n").filter((line) => line.trim().length > 0).length;
+}
+
+export function Textarea({
+  id,
+  label,
+  value,
+  onChange,
+  error = false,
+  errorMessage,
+  hideCount = false,
+  countLabel = (count) => `${count} ${count === 1 ? "keyword" : "keywords"}`,
+  className,
+  rows = 10,
+  ...props
+}: TextareaProps) {
+  const count = countNonBlankLines(value);
+  const errorId = `${id}-error`;
+  const countId = `${id}-count`;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        rows={rows}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error || undefined}
+        aria-describedby={cn(
+          !hideCount && countId,
+          error && errorMessage && errorId,
+        )}
+        className={cn(
+          "w-full rounded-md border bg-surface px-3 py-2 font-mono text-sm text-ink",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
+          error ? "border-danger" : "border-border-strong",
+          className,
+        )}
+        {...props}
+      />
+      {!hideCount && (
+        <Counter state="neutral">
+          <span id={countId}>{countLabel(count)}</span>
+        </Counter>
+      )}
+      {error && errorMessage && (
+        <p id={errorId} role="alert" className="text-sm text-danger">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  );
+}
