@@ -3,6 +3,7 @@
 import type { TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 import { Counter } from "@/components/shared/Counter";
+import { countNonBlankLines } from "@/lib/validation/lineCount";
 
 export interface TextareaProps extends Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
@@ -16,11 +17,6 @@ export interface TextareaProps extends Omit<
   errorMessage?: string;
   hideCount?: boolean;
   countLabel?: (count: number) => string;
-}
-
-function countNonBlankLines(value: string): number {
-  if (!value) return 0;
-  return value.split("\n").filter((line) => line.trim().length > 0).length;
 }
 
 export function Textarea({
