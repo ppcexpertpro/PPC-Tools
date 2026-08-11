@@ -16,6 +16,7 @@ export interface TextareaProps extends Omit<
   error?: boolean;
   errorMessage?: string;
   hideCount?: boolean;
+  hideLabel?: boolean;
   countLabel?: (count: number) => string;
 }
 
@@ -27,6 +28,7 @@ export function Textarea({
   error = false,
   errorMessage,
   hideCount = false,
+  hideLabel = false,
   countLabel = (count) => `${count} ${count === 1 ? "keyword" : "keywords"}`,
   className,
   rows = 10,
@@ -38,7 +40,10 @@ export function Textarea({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
+      <label
+        htmlFor={id}
+        className={cn("text-sm font-medium text-ink", hideLabel && "sr-only")}
+      >
         {label}
       </label>
       <textarea

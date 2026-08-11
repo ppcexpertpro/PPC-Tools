@@ -1,3 +1,5 @@
+import { collapseSpaces, removeDisallowedChars } from "@/lib/text/cleanup";
+
 export type MatchType = "broad" | "phrase" | "exact" | "bmm";
 
 export interface MatchTypeOptions {
@@ -15,16 +17,6 @@ export interface MatchTypeResult {
 }
 
 const MAX_KEYWORD_LENGTH = 80;
-// Letters, numbers, spaces, and - ' & (PRD §5.1 "Strip special characters").
-const DISALLOWED_CHARS = /[^a-zA-Z0-9\s\-'&]/g;
-
-function collapseSpaces(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function removeDisallowedChars(text: string): string {
-  return text.replace(DISALLOWED_CHARS, "");
-}
 
 /**
  * Undoes an existing match-type wrapper before reapplying one, so
