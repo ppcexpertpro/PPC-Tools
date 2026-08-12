@@ -9,3 +9,7 @@ export function getLineCountStatus(count: number): LimitStatus {
   if (count > MATCH_TYPE_SOFT_WARNING_LINES) return "warning";
   return "ok";
 }
+
+// PRD §5.3: max 10MB file size, max 50,000 parsed rows.
+export const NEG_FINDER_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+export const NEG_FINDER_MAX_ROWS = 50000;

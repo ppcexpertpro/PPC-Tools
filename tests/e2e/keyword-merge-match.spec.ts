@@ -7,12 +7,13 @@ test.describe("Keyword Merge & Match — golden path", () => {
     await page.goto("/keyword-merge-match");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Keyword Merge & Match Tool" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: "Keyword Merge & Match Tool",
+      }),
     ).toBeVisible();
 
-    await page
-      .getByLabel("Group 1 terms")
-      .fill("best\ncheap");
+    await page.getByLabel("Group 1 terms").fill("best\ncheap");
     await page.getByLabel("Group 2 terms").fill("running shoes");
 
     await expect(page.getByText("Will generate 2 keywords.")).toBeVisible();
@@ -50,9 +51,7 @@ test.describe("Keyword Merge & Match — cap exceeded", () => {
     await page.getByLabel("Group 1 terms").fill(bigList);
     await page.getByLabel("Group 2 terms").fill(bigList);
 
-    await expect(
-      page.getByText(/reduce group sizes.*40,000/i),
-    ).toBeVisible();
+    await expect(page.getByText(/reduce group sizes.*40,000/i)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Merge & Process" }),
     ).toBeDisabled();
