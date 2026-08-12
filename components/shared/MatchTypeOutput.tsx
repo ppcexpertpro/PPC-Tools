@@ -10,6 +10,7 @@ import {
 } from "@/components/shared/MatchTypeSelector";
 import type { MatchTypeResult } from "@/lib/algorithms/matchType";
 import { cn } from "@/lib/cn";
+import { trackEvent, type ToolName } from "@/lib/analytics";
 
 export interface MatchTypeOutputProps {
   result: MatchTypeResult | null;
@@ -17,6 +18,7 @@ export interface MatchTypeOutputProps {
   showLoading: boolean;
   emptyTitle: string;
   emptyDescription: string;
+  tool: ToolName;
 }
 
 /**
@@ -30,6 +32,7 @@ export function MatchTypeOutput({
   showLoading,
   emptyTitle,
   emptyDescription,
+  tool,
 }: MatchTypeOutputProps) {
   const [labeledCopyAll, setLabeledCopyAll] = useState(true);
 
@@ -75,7 +78,14 @@ export function MatchTypeOutput({
               />
               Include labels in Copy All
             </label>
-            <CopyButton text={copyAllText} label="Copy All" variant="primary" />
+            <CopyButton
+              text={copyAllText}
+              label="Copy All"
+              variant="primary"
+              onCopied={() =>
+                trackEvent({ name: "value_action", tool, action: "copy_all" })
+              }
+            />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -95,7 +105,12 @@ export function MatchTypeOutput({
                     <h3 className="font-display text-sm font-semibold text-ink">
                       {definition.label} ({lines.length.toLocaleString()})
                     </h3>
-                    <CopyButton text={lines.join("\n")} />
+                    <CopyButton
+                      text={lines.join("\n")}
+                      onCopied={() =>
+                        trackEvent({ name: "value_action", tool, action: "copy" })
+                      }
+                    />
                   </div>
                   <div className="max-h-64 overflow-y-auto rounded-md bg-paper p-2 font-mono text-xs text-ink">
                     {lines.length === 0 ? (

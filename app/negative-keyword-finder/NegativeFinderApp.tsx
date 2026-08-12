@@ -7,6 +7,7 @@ import { Chip } from "@/components/shared/Chip";
 import { Counter } from "@/components/shared/Counter";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { Button } from "@/components/shared/Button";
+import { CrossToolPrompt } from "@/components/shared/CrossToolPrompt";
 import { Dropzone, type DropzoneStatus } from "@/components/shared/Dropzone";
 import { EmptyState } from "@/components/shared/EmptyState";
 import {
@@ -22,7 +23,6 @@ import { convertMatchTypes } from "@/lib/algorithms/matchType";
 import type { FrequencyRow, NgramSize } from "@/lib/algorithms/tokenize";
 import { detectSearchTermColumn } from "@/lib/file-parsing/columnDetection";
 import { parseCsv } from "@/lib/file-parsing/csv";
-import { parseExcel } from "@/lib/file-parsing/excel";
 import { readTextFile } from "@/lib/file-parsing/txt";
 import { splitLines } from "@/lib/validation/lineCount";
 import {
@@ -38,7 +38,9 @@ import type {
 } from "@/lib/workers/tokenize.worker";
 import { downloadTextFile } from "@/lib/download";
 import { useUIStore } from "@/store/uiStore";
+import { bucketInputSize, trackEvent } from "@/lib/analytics";
 
+const TOOL = "negative-keyword-finder" as const;
 const NGRAM_LABELS: Record<NgramSize, string> = {
   1: "Unigrams",
   2: "Bigrams",
@@ -91,6 +93,11 @@ export function NegativeFinderApp() {
   const showToast = useUIStore((store) => store.showToast);
 
   useEffect(() => {
+    trackEvent({
+      name: "tool_view",
+      tool: TOOL,
+      referrer: document.referrer,
+    });
     return () => {
       workerRef.current?.terminate();
     };
@@ -127,13 +134,29 @@ export function NegativeFinderApp() {
           TokenizeWorkerRequest,
           TokenizeWorkerResponse
         >(workerRef.current, request);
-        if (!cancelled) setTokenizeResult(response);
+        if (!cancelled) {
+          setTokenizeResult(response);
+          trackEvent({
+            name: "process_run",
+            tool: TOOL,
+            inputSizeBucket: bucketInputSize(activeTerms.length),
+            options: [
+              ...ngramSizes.map((size) => `ngram_${size}`),
+              ...(hideStopwords ? ["hide_stopwords"] : []),
+            ],
+          });
+        }
       } catch {
         if (!cancelled) {
           showToast(
             "error",
             "Something went wrong counting words — try again or reduce the list size.",
           );
+          trackEvent({
+            name: "error_occurred",
+            tool: TOOL,
+            errorClass: "worker_crash",
+          });
         }
       } finally {
         if (!cancelled) setIsTokenizing(false);
@@ -164,6 +187,7 @@ export function NegativeFinderApp() {
         message: `Max ${NEG_FINDER_MAX_ROWS.toLocaleString()} rows — this file has ${terms.length.toLocaleString()}.`,
       });
       setFileTerms(null);
+      trackEvent({ name: "limit_hit", tool: TOOL, limitType: "row_count" });
       return;
     }
     setFileTerms(terms);
@@ -180,6 +204,7 @@ export function NegativeFinderApp() {
         status: "error",
         message: `Max file size is 10MB — this file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
       });
+      trackEvent({ name: "limit_hit", tool: TOOL, limitType: "file_size" });
       return;
     }
 
@@ -213,7 +238,10 @@ export function NegativeFinderApp() {
         return;
       }
 
-      // .xls / .xlsx
+      // .xls / .xlsx — dynamically imported so the ~450KB xlsx library only
+      // loads for users who actually upload an Excel file, not on every
+      // visit to this route (paste and CSV/TXT paths never need it).
+      const { parseExcel } = await import("@/lib/file-parsing/excel");
       const { headers, rows, sheetName } = await parseExcel(file);
       setSheetNote(`Reading first sheet: '${sheetName}'`);
       const detection = detectSearchTermColumn(headers);
@@ -227,6 +255,11 @@ export function NegativeFinderApp() {
         status: "error",
         message:
           "We couldn't read this file — check it's a valid CSV/XLS/XLSX.",
+      });
+      trackEvent({
+        name: "error_occurred",
+        tool: TOOL,
+        errorClass: "file_parse_failure",
       });
     }
   };
@@ -256,18 +289,29 @@ export function NegativeFinderApp() {
     });
   };
 
-  const getSortedRows = (size: NgramSize): FrequencyRow[] => {
-    const rows = tokenizeResult?.[size] ?? [];
-    const { column, direction } = sortState[size];
-    const sorted = [...rows].sort((a, b) => {
-      const compare =
-        column === "token"
-          ? a.token.localeCompare(b.token)
-          : a[column] - b[column];
-      return direction === "asc" ? compare : -compare;
-    });
-    return sorted;
-  };
+  // Memoized: without this, every render (e.g. clicking one token, which
+  // only changes selectedNegatives) re-sorts every visible frequency table
+  // from scratch — a real INP cost once token counts get into the thousands.
+  const sortedRowsBySize = useMemo(() => {
+    const result: Partial<Record<NgramSize, FrequencyRow[]>> = {};
+    for (const size of ngramSizes) {
+      const rows = tokenizeResult?.[size] ?? [];
+      const { column, direction } = sortState[size];
+      result[size] = [...rows].sort((a, b) => {
+        const compare =
+          column === "token"
+            ? a.token.localeCompare(b.token)
+            : a[column] - b[column];
+        return direction === "asc" ? compare : -compare;
+      });
+    }
+    return result;
+  }, [tokenizeResult, sortState, ngramSizes]);
+
+  const selectedTokensSet = useMemo(
+    () => new Set(selectedNegatives),
+    [selectedNegatives],
+  );
 
   const handleSortChange = (size: NgramSize, column: SortColumn) => {
     setSortState((current) => {
@@ -392,17 +436,36 @@ export function NegativeFinderApp() {
             legend="Export match type"
           />
           <div className="flex flex-wrap gap-2">
-            <CopyButton text={exportText} label="Copy" variant="primary" />
+            <CopyButton
+              text={exportText}
+              label="Copy"
+              variant="primary"
+              onCopied={() =>
+                trackEvent({ name: "value_action", tool: TOOL, action: "copy" })
+              }
+            />
             <Button
               variant="secondary"
               disabled={selectedNegatives.length === 0}
-              onClick={() =>
-                downloadTextFile("negative-keywords.txt", exportText)
-              }
+              onClick={() => {
+                downloadTextFile("negative-keywords.txt", exportText);
+                trackEvent({
+                  name: "value_action",
+                  tool: TOOL,
+                  action: "download",
+                });
+              }}
             >
               Download .txt
             </Button>
           </div>
+          {selectedNegatives.length > 0 && (
+            <CrossToolPrompt
+              message="Building your negative list into a new campaign? Format it as exact/phrase match with the Keyword Match Type Tool →"
+              href="/keyword-match-type"
+              linkText="Keyword Match Type"
+            />
+          )}
         </div>
       </div>
 
@@ -480,8 +543,8 @@ export function NegativeFinderApp() {
                 {NGRAM_LABELS[size]}
               </h2>
               <FrequencyTable
-                rows={getSortedRows(size)}
-                selectedTokens={new Set(selectedNegatives)}
+                rows={sortedRowsBySize[size] ?? []}
+                selectedTokens={selectedTokensSet}
                 onToggleToken={toggleNegative}
                 sortColumn={sortState[size].column}
                 sortDirection={sortState[size].direction}

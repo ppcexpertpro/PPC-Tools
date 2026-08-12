@@ -21,6 +21,7 @@ describe("MatchTypeOutput", () => {
         showLoading={false}
         emptyTitle="Nothing yet"
         emptyDescription="Paste a list to get started."
+        tool="keyword-match-type"
       />,
     );
     expect(screen.getByText("Nothing yet")).toBeInTheDocument();
@@ -34,6 +35,7 @@ describe("MatchTypeOutput", () => {
         showLoading
         emptyTitle="Nothing yet"
         emptyDescription="Paste a list to get started."
+        tool="keyword-match-type"
       />,
     );
     expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
@@ -48,6 +50,7 @@ describe("MatchTypeOutput", () => {
         showLoading={false}
         emptyTitle="Nothing yet"
         emptyDescription="Paste a list to get started."
+        tool="keyword-match-type"
       />,
     );
 
@@ -64,6 +67,7 @@ describe("MatchTypeOutput", () => {
         showLoading={false}
         emptyTitle="Nothing yet"
         emptyDescription="Paste a list to get started."
+        tool="keyword-match-type"
       />,
     );
 

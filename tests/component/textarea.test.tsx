@@ -23,7 +23,8 @@ describe("Textarea", () => {
     render(<ControlledTextarea />);
     const field = screen.getByLabelText("Keywords");
 
-    await userEvent.type(field, "running shoes{enter}   {enter}hiking boots");
+    await userEvent.click(field);
+    await userEvent.paste("running shoes\n   \nhiking boots");
     expect(screen.getByText("2 keywords")).toBeInTheDocument();
   });
 

@@ -16,10 +16,23 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
+  // TRD §8 browser matrix: Chrome/Edge (chromium), Firefox, Safari (webkit).
+  // `npm run test:e2e` targets chromium only for fast local iteration;
+  // run `npx playwright test` (no filter) or `--project=firefox`/`webkit`
+  // for a full cross-browser pass — heavier, so best run when the machine
+  // isn't already under memory pressure from other apps.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
   webServer: {

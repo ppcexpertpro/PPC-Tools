@@ -39,6 +39,28 @@ test.describe("Keyword Merge & Match — golden path", () => {
       page.getByRole("button", { name: "Merge & Process" }),
     ).toBeDisabled();
   });
+
+  test("never sends keyword content over the network", async ({ page }) => {
+    const observedTraffic: string[] = [];
+    page.on("request", (request) => {
+      observedTraffic.push(request.url());
+      const postData = request.postData();
+      if (postData) observedTraffic.push(postData);
+    });
+
+    await page.goto("/keyword-merge-match");
+    const canaryA = "zzzunlikely-canary-modifier-zzz";
+    const canaryB = "zzzunlikely-canary-core-zzz";
+    await page.getByLabel("Group 1 terms").fill(canaryA);
+    await page.getByLabel("Group 2 terms").fill(canaryB);
+    await page.getByRole("button", { name: "Merge & Process" }).click();
+    await expect(page.getByTestId("output-block-broad")).toBeVisible();
+
+    for (const entry of observedTraffic) {
+      expect(entry).not.toContain(canaryA);
+      expect(entry).not.toContain(canaryB);
+    }
+  });
 });
 
 test.describe("Keyword Merge & Match — cap exceeded", () => {

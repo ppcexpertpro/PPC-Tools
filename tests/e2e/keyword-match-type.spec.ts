@@ -5,8 +5,15 @@ test.describe("Keyword Match Type — golden path", () => {
   test("formats a pasted list into the selected match types and copies the result", async ({
     page,
     context,
+    browserName,
   }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    // Playwright can only grant clipboard permissions on Chromium — Firefox
+    // and WebKit don't expose that automation surface. The write itself
+    // (triggered by a real click below) still works everywhere; only the
+    // read-back verification is Chromium-only.
+    if (browserName === "chromium") {
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
     await page.goto("/keyword-match-type");
 
     await expect(
@@ -42,14 +49,17 @@ test.describe("Keyword Match Type — golden path", () => {
     await expect(
       broadBlock.getByRole("button", { name: "Copied!" }),
     ).toBeVisible();
-    const clipboardText = await page.evaluate(() =>
-      navigator.clipboard.readText(),
-    );
-    // Windows normalizes clipboard line endings to CRLF on write — not an
-    // app bug, so normalize before comparing.
-    expect(clipboardText.replace(/\r\n/g, "\n")).toBe(
-      "running shoes\nhiking boots",
-    );
+
+    if (browserName === "chromium") {
+      const clipboardText = await page.evaluate(() =>
+        navigator.clipboard.readText(),
+      );
+      // Windows normalizes clipboard line endings to CRLF on write — not an
+      // app bug, so normalize before comparing.
+      expect(clipboardText.replace(/\r\n/g, "\n")).toBe(
+        "running shoes\nhiking boots",
+      );
+    }
   });
 
   test("has no critical or serious accessibility violations once results render", async ({

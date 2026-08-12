@@ -5,8 +5,15 @@ test.describe("Negative Keyword Finder — paste path", () => {
   test("tokenizes pasted rows automatically and lets the user select negatives", async ({
     page,
     context,
+    browserName,
   }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    // Playwright can only grant clipboard permissions on Chromium — Firefox
+    // and WebKit don't expose that automation surface. The write itself
+    // (triggered by a real click below) still works everywhere; only the
+    // read-back verification is Chromium-only.
+    if (browserName === "chromium") {
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
     await page.goto("/negative-keyword-finder");
 
     await expect(
@@ -29,10 +36,13 @@ test.describe("Negative Keyword Finder — paste path", () => {
 
     await page.getByRole("button", { name: "Copy" }).click();
     await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
-    const clipboardText = await page.evaluate(() =>
-      navigator.clipboard.readText(),
-    );
-    expect(clipboardText).toBe("running");
+
+    if (browserName === "chromium") {
+      const clipboardText = await page.evaluate(() =>
+        navigator.clipboard.readText(),
+      );
+      expect(clipboardText).toBe("running");
+    }
   });
 
   test("has no critical or serious accessibility violations", async ({
@@ -50,6 +60,26 @@ test.describe("Negative Keyword Finder — paste path", () => {
         violation.impact === "serious" || violation.impact === "critical",
     );
     expect(seriousOrCritical).toEqual([]);
+  });
+
+  test("never sends keyword content over the network", async ({ page }) => {
+    const observedTraffic: string[] = [];
+    page.on("request", (request) => {
+      observedTraffic.push(request.url());
+      const postData = request.postData();
+      if (postData) observedTraffic.push(postData);
+    });
+
+    await page.goto("/negative-keyword-finder");
+    const canaryTerm = "zzzunlikely-canary-search-term-zzz";
+    await page.getByLabel("Paste search terms").fill(canaryTerm);
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^${canaryTerm},`, "i") }),
+    ).toBeVisible();
+
+    for (const entry of observedTraffic) {
+      expect(entry).not.toContain(canaryTerm);
+    }
   });
 });
 

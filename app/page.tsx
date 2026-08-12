@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "PPC Keyword Utilities Suite — Free Keyword Tools for Google Ads",
+  description:
+    "Free, no-login keyword tools for PPC specialists: match-type formatting, list merging, and negative-keyword mining. Every keyword stays in your browser.",
+};
 
 interface ToolCard {
   href: string;

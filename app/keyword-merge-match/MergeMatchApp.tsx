@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/shared/Button";
 import { Checkbox } from "@/components/shared/Checkbox";
 import { Counter } from "@/components/shared/Counter";
+import { CrossToolPrompt } from "@/components/shared/CrossToolPrompt";
 import { GroupCard, type MergeGroupData } from "@/components/shared/GroupCard";
 import { MatchTypeOutput } from "@/components/shared/MatchTypeOutput";
 import {
@@ -22,12 +23,16 @@ import type {
   MergeWorkerResponse,
 } from "@/lib/workers/merge.worker";
 import { useUIStore } from "@/store/uiStore";
+import { bucketInputSize, trackEvent } from "@/lib/analytics";
 
+const TOOL = "keyword-merge-match" as const;
 const MAX_GROUPS = 5;
 const MIN_GROUPS = 2;
 const WARNING_THRESHOLD = MAX_MERGE_COMBINATIONS * 0.8;
 const LOADING_THRESHOLD_MS = 300;
 const COUNTER_DEBOUNCE_MS = 150;
+// APP-FLOW §2: suggestion appears "after a large merged list is generated".
+const LARGE_RESULT_THRESHOLD = 20;
 
 const DEFAULT_MATCH_TYPES: MatchType[] = ["broad"];
 const DEFAULT_OPTIONS: MergeOptions = {
@@ -75,6 +80,11 @@ export function MergeMatchApp() {
   const canProcess = hasEnoughGroups && !overCap && matchTypes.length > 0;
 
   useEffect(() => {
+    trackEvent({
+      name: "tool_view",
+      tool: TOOL,
+      referrer: document.referrer,
+    });
     return () => {
       workerRef.current?.terminate();
     };
@@ -85,6 +95,14 @@ export function MergeMatchApp() {
     const timer = setTimeout(() => setShowLoading(true), LOADING_THRESHOLD_MS);
     return () => clearTimeout(timer);
   }, [isProcessing]);
+
+  const wasOverCapRef = useRef(false);
+  useEffect(() => {
+    if (overCap && !wasOverCapRef.current) {
+      trackEvent({ name: "limit_hit", tool: TOOL, limitType: "merge_cap" });
+    }
+    wasOverCapRef.current = overCap;
+  }, [overCap]);
 
   const addGroup = () => {
     if (groups.length >= MAX_GROUPS) return;
@@ -174,11 +192,24 @@ export function MergeMatchApp() {
         return;
       }
       setResult(response);
+      trackEvent({
+        name: "process_run",
+        tool: TOOL,
+        inputSizeBucket: bucketInputSize(predictedCount),
+        options: Object.entries(options)
+          .filter(([, enabled]) => enabled)
+          .map(([key]) => key),
+      });
     } catch {
       showToast(
         "error",
         "Something went wrong processing your list — try again or reduce the list size.",
       );
+      trackEvent({
+        name: "error_occurred",
+        tool: TOOL,
+        errorClass: "worker_crash",
+      });
     } finally {
       setIsProcessing(false);
       setShowLoading(false);
@@ -295,7 +326,16 @@ export function MergeMatchApp() {
         showLoading={showLoading}
         emptyTitle="Your merged keywords will appear here"
         emptyDescription="Fill in at least two groups, choose your match types, and click Merge & Process."
+        tool={TOOL}
       />
+
+      {result && result.validCount >= LARGE_RESULT_THRESHOLD && (
+        <CrossToolPrompt
+          message="Once these are live, mine your search terms report for negatives →"
+          href="/negative-keyword-finder"
+          linkText="Negative Keyword Finder"
+        />
+      )}
     </div>
   );
 }

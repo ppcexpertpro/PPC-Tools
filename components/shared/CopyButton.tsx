@@ -12,6 +12,7 @@ export interface CopyButtonProps {
   label?: string;
   variant?: ButtonProps["variant"];
   className?: string;
+  onCopied?: () => void;
 }
 
 export function CopyButton({
@@ -19,6 +20,7 @@ export function CopyButton({
   label = "Copy",
   variant = "secondary",
   className,
+  onCopied,
 }: CopyButtonProps) {
   const [state, setState] = useState<CopyState>("idle");
   const showToast = useUIStore((store) => store.showToast);
@@ -42,6 +44,7 @@ export function CopyButton({
     if (result.ok) {
       setState("copied");
       showToast("success", "Copied to clipboard");
+      onCopied?.();
     } else {
       setState("manual");
       showToast(

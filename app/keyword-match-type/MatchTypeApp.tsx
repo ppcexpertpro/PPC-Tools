@@ -29,7 +29,9 @@ import { runWorkerTask } from "@/lib/workers/runWorkerTask";
 import { createMatchTypeWorker } from "@/lib/workers/matchTypeWorkerClient";
 import type { MatchTypeWorkerRequest } from "@/lib/workers/matchType.worker";
 import { useUIStore } from "@/store/uiStore";
+import { bucketInputSize, trackEvent } from "@/lib/analytics";
 
+const TOOL = "keyword-match-type" as const;
 const DEFAULT_MATCH_TYPES: MatchType[] = ["broad"];
 const DEFAULT_OPTIONS: MatchTypeOptions = {
   lowercase: false,
@@ -58,6 +60,11 @@ export function MatchTypeApp() {
     lineCount > 0 && matchTypes.length > 0 && lineCountStatus !== "blocked";
 
   useEffect(() => {
+    trackEvent({
+      name: "tool_view",
+      tool: TOOL,
+      referrer: document.referrer,
+    });
     return () => {
       workerRef.current?.terminate();
     };
@@ -68,6 +75,15 @@ export function MatchTypeApp() {
     const timer = setTimeout(() => setShowLoading(true), LOADING_THRESHOLD_MS);
     return () => clearTimeout(timer);
   }, [isProcessing]);
+
+  const wasBlockedRef = useRef(false);
+  useEffect(() => {
+    const isBlocked = lineCountStatus === "blocked";
+    if (isBlocked && !wasBlockedRef.current) {
+      trackEvent({ name: "limit_hit", tool: TOOL, limitType: "line_count" });
+    }
+    wasBlockedRef.current = isBlocked;
+  }, [lineCountStatus]);
 
   const handleProcess = async () => {
     if (!canProcess) return;
@@ -86,11 +102,24 @@ export function MatchTypeApp() {
         MatchTypeResult
       >(workerRef.current, request);
       setResult(response);
+      trackEvent({
+        name: "process_run",
+        tool: TOOL,
+        inputSizeBucket: bucketInputSize(lineCount),
+        options: Object.entries(options)
+          .filter(([, enabled]) => enabled)
+          .map(([key]) => key),
+      });
     } catch {
       showToast(
         "error",
         "Something went wrong processing your list — try again or reduce the list size.",
       );
+      trackEvent({
+        name: "error_occurred",
+        tool: TOOL,
+        errorClass: "worker_crash",
+      });
     } finally {
       setIsProcessing(false);
       setShowLoading(false);
@@ -216,6 +245,7 @@ export function MatchTypeApp() {
         showLoading={showLoading}
         emptyTitle="Your formatted keywords will appear here"
         emptyDescription="Paste a list, choose your match types, and click Process (or press Ctrl/Cmd+Enter)."
+        tool={TOOL}
       />
     </div>
   );

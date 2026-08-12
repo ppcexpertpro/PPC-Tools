@@ -47,10 +47,8 @@ describe("MatchTypeApp", () => {
   it("golden path: formats input into the selected match types with correct counts", async () => {
     render(<MatchTypeApp />);
 
-    await userEvent.type(
-      screen.getByLabelText("Keywords"),
-      "running shoes{enter}Running Shoes{enter}hiking boots",
-    );
+    await userEvent.click(screen.getByLabelText("Keywords"));
+    await userEvent.paste("running shoes\nRunning Shoes\nhiking boots");
     // Default match types = ["broad"]; add Phrase for this test.
     await userEvent.click(screen.getByRole("checkbox", { name: /^phrase/i }));
     await userEvent.click(screen.getByRole("button", { name: "Process" }));
@@ -72,7 +70,11 @@ describe("MatchTypeApp", () => {
     render(<MatchTypeApp />);
     const longKeyword = "a".repeat(90);
 
-    await userEvent.type(screen.getByLabelText("Keywords"), longKeyword);
+    // userEvent.type() drives 90 individual keystrokes through React; under
+    // CPU contention from the full parallel test suite this can exceed the
+    // default 5s timeout even though nothing is actually hung.
+    await userEvent.click(screen.getByLabelText("Keywords"));
+    await userEvent.paste(longKeyword);
     await userEvent.click(screen.getByRole("button", { name: "Process" }));
 
     expect(await screen.findByText(/needs review \(1\)/i)).toBeInTheDocument();

@@ -46,10 +46,8 @@ describe("NegativeFinderApp", () => {
   it("paste path: tokenizes pasted rows and shows a unigram frequency table", async () => {
     render(<NegativeFinderApp />);
 
-    await userEvent.type(
-      screen.getByLabelText("Paste search terms"),
-      "running shoes for men{enter}running shoes for women",
-    );
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("running shoes for men\nrunning shoes for women");
 
     expect(
       await screen.findByRole("button", { name: /^running, 2 occurrences/i }),
@@ -62,10 +60,8 @@ describe("NegativeFinderApp", () => {
 
   it("selecting a token adds it to the Selected negatives panel with a live count", async () => {
     render(<NegativeFinderApp />);
-    await userEvent.type(
-      screen.getByLabelText("Paste search terms"),
-      "running shoes{enter}running boots",
-    );
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("running shoes\nrunning boots");
 
     const tokenButton = await screen.findByRole("button", {
       name: /^running, 2 occurrences/i,
@@ -78,10 +74,8 @@ describe("NegativeFinderApp", () => {
 
   it("exports selected negatives formatted with the chosen match type", async () => {
     render(<NegativeFinderApp />);
-    await userEvent.type(
-      screen.getByLabelText("Paste search terms"),
-      "running shoes{enter}running boots",
-    );
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("running shoes\nrunning boots");
 
     const tokenButton = await screen.findByRole("button", {
       name: /^running, 2 occurrences/i,
@@ -97,10 +91,8 @@ describe("NegativeFinderApp", () => {
 
   it("toggling 'Hide common words' off reveals stopword tokens", async () => {
     render(<NegativeFinderApp />);
-    await userEvent.type(
-      screen.getByLabelText("Paste search terms"),
-      "shoes for men",
-    );
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("shoes for men");
 
     await screen.findByRole("button", { name: /^shoes,/i });
     expect(
@@ -118,10 +110,8 @@ describe("NegativeFinderApp", () => {
 
   it("shows bigram and trigram tables when those n-gram sizes are enabled", async () => {
     render(<NegativeFinderApp />);
-    await userEvent.type(
-      screen.getByLabelText("Paste search terms"),
-      "red running shoes",
-    );
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("red running shoes");
     await screen.findByRole("button", { name: /^running,/i });
 
     await userEvent.click(screen.getByRole("checkbox", { name: /bigram/i }));

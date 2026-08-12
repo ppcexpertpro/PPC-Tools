@@ -15,6 +15,9 @@ const config: Config = {
     "<rootDir>/.next/",
     "<rootDir>/tests/e2e/",
   ],
+  // Default 5s is too tight under full-suite CPU contention (many parallel
+  // jsdom environments); async tests otherwise pass instantly in isolation.
+  testTimeout: 15000,
 };
 
 export default createJestConfig(config);

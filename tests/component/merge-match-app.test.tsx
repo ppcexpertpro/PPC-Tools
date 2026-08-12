@@ -66,14 +66,10 @@ describe("MergeMatchApp", () => {
   it("golden path: merges two groups in on-screen order and formats the result", async () => {
     render(<MergeMatchApp />);
 
-    await userEvent.type(
-      screen.getByLabelText("Group 1 terms"),
-      "best{enter}cheap",
-    );
-    await userEvent.type(
-      screen.getByLabelText("Group 2 terms"),
-      "running shoes",
-    );
+    await userEvent.click(screen.getByLabelText("Group 1 terms"));
+    await userEvent.paste("best\ncheap");
+    await userEvent.click(screen.getByLabelText("Group 2 terms"));
+    await userEvent.paste("running shoes");
 
     expect(
       await screen.findByText(/will generate 2 keywords/i),
@@ -115,11 +111,10 @@ describe("MergeMatchApp", () => {
   it("reorders groups via the mobile up/down buttons, changing merge order", async () => {
     render(<MergeMatchApp />);
 
-    await userEvent.type(screen.getByLabelText("Group 1 terms"), "best");
-    await userEvent.type(
-      screen.getByLabelText("Group 2 terms"),
-      "running shoes",
-    );
+    await userEvent.click(screen.getByLabelText("Group 1 terms"));
+    await userEvent.paste("best");
+    await userEvent.click(screen.getByLabelText("Group 2 terms"));
+    await userEvent.paste("running shoes");
 
     await userEvent.click(
       screen.getByRole("button", { name: /move group 2 up/i }),
