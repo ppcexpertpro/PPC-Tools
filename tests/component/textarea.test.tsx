@@ -36,7 +36,7 @@ describe("Textarea", () => {
         value="over the limit"
         onChange={() => {}}
         error
-        errorMessage="Max 5,000 lines — you have 5,412."
+        errorMessage="Max 5,000 lines - you have 5,412."
       />,
     );
 

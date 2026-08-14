@@ -38,7 +38,7 @@ class MockWorker {
 }
 
 // jest.mock() does not resolve the "@/" alias in this Jest/Next setup
-// (unlike regular imports) — use a relative path here specifically.
+// (unlike regular imports) - use a relative path here specifically.
 jest.mock("../../lib/workers/matchTypeWorkerClient", () => ({
   createMatchTypeWorker: () => new MockWorker(),
 }));
@@ -91,9 +91,30 @@ describe("MatchTypeApp", () => {
     await userEvent.paste(tooMany);
 
     expect(
-      await screen.findByText(/max 5,000 lines — you have 5,001/i),
+      await screen.findByText(/max 5,000 lines - you have 5,001/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Process" })).toBeDisabled();
+  });
+
+  it("processes automatically once typing settles, without clicking Process", async () => {
+    render(<MatchTypeApp />);
+
+    await userEvent.click(screen.getByLabelText("Keywords"));
+    await userEvent.paste("running shoes\nhiking boots");
+
+    expect(await screen.findByText(/^Broad \(2\)$/)).toBeInTheDocument();
+  });
+
+  it("checking a new match type after processing reprocesses automatically instead of showing a false empty result", async () => {
+    render(<MatchTypeApp />);
+
+    await userEvent.click(screen.getByLabelText("Keywords"));
+    await userEvent.paste("running shoes");
+    await screen.findByText(/^Broad \(1\)$/);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /^exact/i }));
+
+    expect(await screen.findByText(/^Exact \(1\)$/)).toBeInTheDocument();
   });
 
   it("requires at least one match type before processing", async () => {

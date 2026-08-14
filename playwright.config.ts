@@ -5,7 +5,7 @@ const PORT = 4200;
 export default defineConfig({
   testDir: "./tests/e2e",
   // A single worker against a production server keeps runs stable in this
-  // environment — `next dev`'s on-demand per-route compilation stalls badly
+  // environment - `next dev`'s on-demand per-route compilation stalls badly
   // when several tests hit an uncompiled route at once.
   fullyParallel: false,
   workers: 1,
@@ -19,7 +19,7 @@ export default defineConfig({
   // TRD §8 browser matrix: Chrome/Edge (chromium), Firefox, Safari (webkit).
   // `npm run test:e2e` targets chromium only for fast local iteration;
   // run `npx playwright test` (no filter) or `--project=firefox`/`webkit`
-  // for a full cross-browser pass — heavier, so best run when the machine
+  // for a full cross-browser pass - heavier, so best run when the machine
   // isn't already under memory pressure from other apps.
   projects: [
     {

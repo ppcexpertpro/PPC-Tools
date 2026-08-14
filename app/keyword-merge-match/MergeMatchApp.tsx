@@ -9,6 +9,7 @@ import { GroupCard, type MergeGroupData } from "@/components/shared/GroupCard";
 import { MatchTypeOutput } from "@/components/shared/MatchTypeOutput";
 import {
   MatchTypeSelector,
+  sameMatchTypes,
   type MatchType,
 } from "@/components/shared/MatchTypeSelector";
 import type { MergeOptions } from "@/lib/algorithms/merge";
@@ -30,7 +31,7 @@ const MAX_GROUPS = 5;
 const MIN_GROUPS = 2;
 const WARNING_THRESHOLD = MAX_MERGE_COMBINATIONS * 0.8;
 const LOADING_THRESHOLD_MS = 300;
-const COUNTER_DEBOUNCE_MS = 150;
+const GROUPS_DEBOUNCE_MS = 150;
 // APP-FLOW §2: suggestion appears "after a large merged list is generated".
 const LARGE_RESULT_THRESHOLD = 20;
 
@@ -45,6 +46,12 @@ function createGroup(index: number): MergeGroupData {
   return { id: crypto.randomUUID(), label: `Group ${index}`, value: "" };
 }
 
+interface ProcessedSnapshot {
+  groups: MergeGroupData[];
+  matchTypes: MatchType[];
+  options: MergeOptions;
+}
+
 export function MergeMatchApp() {
   const [groups, setGroups] = useState<MergeGroupData[]>(() => [
     createGroup(1),
@@ -54,6 +61,8 @@ export function MergeMatchApp() {
     useState<MatchType[]>(DEFAULT_MATCH_TYPES);
   const [options, setOptions] = useState<MergeOptions>(DEFAULT_OPTIONS);
   const [result, setResult] = useState<MatchTypeResult | null>(null);
+  const [processedSnapshot, setProcessedSnapshot] =
+    useState<ProcessedSnapshot | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -61,7 +70,7 @@ export function MergeMatchApp() {
   const workerRef = useRef<Worker | null>(null);
   const showToast = useUIStore((store) => store.showToast);
 
-  const debouncedGroups = useDebouncedValue(groups, COUNTER_DEBOUNCE_MS);
+  const debouncedGroups = useDebouncedValue(groups, GROUPS_DEBOUNCE_MS);
   const nonEmptyCounts = useMemo(
     () =>
       debouncedGroups
@@ -110,11 +119,23 @@ export function MergeMatchApp() {
   };
 
   const removeGroup = (id: string) => {
-    setGroups((current) =>
-      current.length <= MIN_GROUPS
-        ? current
-        : current.filter((group) => group.id !== id),
-    );
+    if (groups.length <= MIN_GROUPS) return;
+    const index = groups.findIndex((group) => group.id === id);
+    if (index === -1) return;
+    const removed = groups[index];
+    setGroups((current) => current.filter((group) => group.id !== id));
+    showToast("info", `Removed ${removed.label}.`, {
+      label: "Undo",
+      onAction: () => {
+        setGroups((current) => {
+          if (current.some((group) => group.id === removed.id)) return current;
+          const restoreIndex = Math.min(index, current.length);
+          const next = [...current];
+          next.splice(restoreIndex, 0, removed);
+          return next;
+        });
+      },
+    });
   };
 
   const updateGroupLabel = (id: string, label: string) => {
@@ -161,7 +182,7 @@ export function MergeMatchApp() {
     };
 
   const handleProcess = async () => {
-    if (!canProcess) return;
+    if (!canProcess || isProcessing) return;
     setIsProcessing(true);
     try {
       if (!workerRef.current) {
@@ -187,11 +208,12 @@ export function MergeMatchApp() {
       if (response.status === "too-many-combinations") {
         showToast(
           "error",
-          `That would generate ${response.predictedCount.toLocaleString()} keywords — reduce group sizes below ${MAX_MERGE_COMBINATIONS.toLocaleString()}.`,
+          `That would generate ${response.predictedCount.toLocaleString()} keywords - reduce group sizes below ${MAX_MERGE_COMBINATIONS.toLocaleString()}.`,
         );
         return;
       }
       setResult(response);
+      setProcessedSnapshot({ groups, matchTypes, options });
       trackEvent({
         name: "process_run",
         tool: TOOL,
@@ -203,7 +225,7 @@ export function MergeMatchApp() {
     } catch {
       showToast(
         "error",
-        "Something went wrong processing your list — try again or reduce the list size.",
+        "Something went wrong processing your list - try again or reduce the list size.",
       );
       trackEvent({
         name: "error_occurred",
@@ -215,6 +237,24 @@ export function MergeMatchApp() {
       setShowLoading(false);
     }
   };
+
+  const isStale =
+    result !== null &&
+    processedSnapshot !== null &&
+    (JSON.stringify(groups) !== JSON.stringify(processedSnapshot.groups) ||
+      !sameMatchTypes(matchTypes, processedSnapshot.matchTypes) ||
+      JSON.stringify(options) !== JSON.stringify(processedSnapshot.options));
+
+  // Live processing (debounced via the same `debouncedGroups` that drives
+  // the "Will generate N keywords" counter): the Merge & Process button
+  // stays as an explicit "run now" trigger, but output keeps itself current
+  // on its own so it can never go stale the way a manual-only gate can.
+  useEffect(() => {
+    if (!canProcess || isProcessing) return;
+    const timer = setTimeout(() => void handleProcess(), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedGroups, matchTypes, options]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -259,7 +299,7 @@ export function MergeMatchApp() {
       )}
       {overCap && (
         <Counter state="error">
-          Reduce group sizes — currently would generate{" "}
+          Reduce group sizes - currently would generate{" "}
           {predictedCount.toLocaleString()} keywords, max is{" "}
           {MAX_MERGE_COMBINATIONS.toLocaleString()}.
         </Counter>
@@ -324,8 +364,10 @@ export function MergeMatchApp() {
         result={result}
         matchTypes={matchTypes}
         showLoading={showLoading}
+        isStale={isStale}
+        canProcess={canProcess}
         emptyTitle="Your merged keywords will appear here"
-        emptyDescription="Fill in at least two groups, choose your match types, and click Merge & Process."
+        emptyDescription="Fill in at least two groups and choose your match types - results update automatically (or click Merge & Process to run immediately)."
         tool={TOOL}
       />
 

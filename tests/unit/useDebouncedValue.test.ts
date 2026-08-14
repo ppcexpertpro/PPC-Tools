@@ -40,7 +40,7 @@ describe("useDebouncedValue", () => {
     act(() => {
       jest.advanceTimersByTime(100);
     });
-    // Only 100ms since the last change ("c") — should not have committed yet.
+    // Only 100ms since the last change ("c") - should not have committed yet.
     expect(result.current).toBe("a");
 
     act(() => {

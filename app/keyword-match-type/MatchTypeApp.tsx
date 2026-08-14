@@ -14,6 +14,7 @@ import { Counter } from "@/components/shared/Counter";
 import { MatchTypeOutput } from "@/components/shared/MatchTypeOutput";
 import {
   MatchTypeSelector,
+  sameMatchTypes,
   type MatchType,
 } from "@/components/shared/MatchTypeSelector";
 import type {
@@ -21,6 +22,7 @@ import type {
   MatchTypeResult,
 } from "@/lib/algorithms/matchType";
 import { countNonBlankLines, splitLines } from "@/lib/validation/lineCount";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   MATCH_TYPE_HARD_CAP_LINES,
   getLineCountStatus,
@@ -41,6 +43,13 @@ const DEFAULT_OPTIONS: MatchTypeOptions = {
   sortAlphabetically: false,
 };
 const LOADING_THRESHOLD_MS = 300;
+const LIVE_PROCESS_DEBOUNCE_MS = 300;
+
+interface ProcessedSnapshot {
+  inputText: string;
+  matchTypes: MatchType[];
+  options: MatchTypeOptions;
+}
 
 export function MatchTypeApp() {
   const [inputText, setInputText] = useState("");
@@ -48,6 +57,8 @@ export function MatchTypeApp() {
     useState<MatchType[]>(DEFAULT_MATCH_TYPES);
   const [options, setOptions] = useState<MatchTypeOptions>(DEFAULT_OPTIONS);
   const [result, setResult] = useState<MatchTypeResult | null>(null);
+  const [processedSnapshot, setProcessedSnapshot] =
+    useState<ProcessedSnapshot | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
 
@@ -86,7 +97,7 @@ export function MatchTypeApp() {
   }, [lineCountStatus]);
 
   const handleProcess = async () => {
-    if (!canProcess) return;
+    if (!canProcess || isProcessing) return;
     setIsProcessing(true);
     try {
       if (!workerRef.current) {
@@ -102,6 +113,7 @@ export function MatchTypeApp() {
         MatchTypeResult
       >(workerRef.current, request);
       setResult(response);
+      setProcessedSnapshot({ inputText, matchTypes, options });
       trackEvent({
         name: "process_run",
         tool: TOOL,
@@ -113,7 +125,7 @@ export function MatchTypeApp() {
     } catch {
       showToast(
         "error",
-        "Something went wrong processing your list — try again or reduce the list size.",
+        "Something went wrong processing your list - try again or reduce the list size.",
       );
       trackEvent({
         name: "error_occurred",
@@ -125,6 +137,25 @@ export function MatchTypeApp() {
       setShowLoading(false);
     }
   };
+
+  const isStale =
+    result !== null &&
+    processedSnapshot !== null &&
+    (inputText !== processedSnapshot.inputText ||
+      !sameMatchTypes(matchTypes, processedSnapshot.matchTypes) ||
+      JSON.stringify(options) !== JSON.stringify(processedSnapshot.options));
+
+  // Live processing (debounced on typing, immediate on match-type/option
+  // toggles): the Process button and Ctrl/Cmd+Enter below stay as an
+  // explicit "run now" trigger, but output keeps itself current on its own
+  // so it can never go stale the way a manual-only gate can.
+  const debouncedInputText = useDebouncedValue(inputText, LIVE_PROCESS_DEBOUNCE_MS);
+  useEffect(() => {
+    if (!canProcess || isProcessing) return;
+    const timer = setTimeout(() => void handleProcess(), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedInputText, matchTypes, options]);
 
   const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -147,7 +178,7 @@ export function MatchTypeApp() {
           error={lineCountStatus === "blocked"}
           errorMessage={
             lineCountStatus === "blocked"
-              ? `Max ${MATCH_TYPE_HARD_CAP_LINES.toLocaleString()} lines — you have ${lineCount.toLocaleString()}.`
+              ? `Max ${MATCH_TYPE_HARD_CAP_LINES.toLocaleString()} lines - you have ${lineCount.toLocaleString()}.`
               : undefined
           }
         />
@@ -219,7 +250,7 @@ export function MatchTypeApp() {
 
           {lineCountStatus === "warning" && (
             <Counter state="warning">
-              {lineCount.toLocaleString()} keywords — processing may take a
+              {lineCount.toLocaleString()} keywords - processing may take a
               moment.
             </Counter>
           )}
@@ -243,8 +274,10 @@ export function MatchTypeApp() {
         result={result}
         matchTypes={matchTypes}
         showLoading={showLoading}
+        isStale={isStale}
+        canProcess={canProcess}
         emptyTitle="Your formatted keywords will appear here"
-        emptyDescription="Paste a list, choose your match types, and click Process (or press Ctrl/Cmd+Enter)."
+        emptyDescription="Paste a list and choose your match types - results update automatically (or press Ctrl/Cmd+Enter to process immediately)."
         tool={TOOL}
       />
     </div>

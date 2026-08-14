@@ -35,3 +35,5 @@ next-env.d.ts
 
 # claude-mem / memory plugin runtime state
 .remember/
+docs/
+.impeccable.md

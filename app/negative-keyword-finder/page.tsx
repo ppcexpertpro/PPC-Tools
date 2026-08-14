@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { NegativeFinderApp } from "./NegativeFinderApp";
 
 export const metadata: Metadata = {
-  title: "Negative Keyword Finder — Mine Search Terms | PPC Tools",
+  title: "Negative Keyword Finder - Mine Search Terms | PPC Tools",
   description:
-    "Paste or upload a search-terms report and mine it for negative keyword candidates by word frequency — free, no login, 100% browser-based.",
+    "Paste or upload a search-terms report and mine it for negative keyword candidates by word frequency - free, no login, 100% browser-based.",
 };
 
 export default function NegativeKeywordFinderPage() {
@@ -27,13 +27,13 @@ export default function NegativeKeywordFinderPage() {
             <p>
               Every row of your search-terms report is broken into words
               (unigrams), word pairs (bigrams), and three-word phrases
-              (trigrams), then counted across the whole list — the words showing
+              (trigrams), then counted across the whole list - the words showing
               up most often are usually the ones worth reviewing first.
             </p>
             <p>
               Common words like &quot;a,&quot; &quot;the,&quot; and
               &quot;for&quot; are hidden by default since they rarely make
-              useful negatives on their own — turn that off in the filter bar if
+              useful negatives on their own - turn that off in the filter bar if
               you want to see everything.
             </p>
             <p>

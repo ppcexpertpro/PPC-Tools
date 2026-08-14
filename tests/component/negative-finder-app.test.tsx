@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NegativeFinderApp } from "@/app/negative-keyword-finder/NegativeFinderApp";
 import { tokenizeAndCount } from "@/lib/algorithms/tokenize";
 import type { TokenizeWorkerRequest } from "@/lib/workers/tokenize.worker";
+import { useUIStore } from "@/store/uiStore";
 
 type Listener = (event: MessageEvent) => void;
 
@@ -43,6 +44,33 @@ jest.mock("../../lib/workers/tokenizeWorkerClient", () => ({
 }));
 
 describe("NegativeFinderApp", () => {
+  beforeEach(() => {
+    useUIStore.setState({ toasts: [] });
+  });
+
+  it("typing into the paste box after a file upload warns before dropping the file", async () => {
+    render(<NegativeFinderApp />);
+    const csv = "Search Term,Clicks\nrunning shoes,10\nrunning boots,5\n";
+    const file = new File([csv], "report.csv", { type: "text/csv" });
+
+    await userEvent.upload(
+      screen.getByLabelText(/upload a search-terms file/i),
+      file,
+    );
+    expect(
+      await screen.findByText("Using 2 rows from your uploaded file."),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("something else");
+
+    expect(
+      screen.queryByText("Using 2 rows from your uploaded file."),
+    ).not.toBeInTheDocument();
+    const toast = useUIStore.getState().toasts.at(-1);
+    expect(toast?.message).toMatch(/uploaded file is no longer active/i);
+  });
+
   it("paste path: tokenizes pasted rows and shows a unigram frequency table", async () => {
     render(<NegativeFinderApp />);
 

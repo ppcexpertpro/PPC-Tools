@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * Shared debounce hook (TRD §6) — used for "live preview" style
+ * Shared debounce hook (TRD §6) - used for "live preview" style
  * recomputation (e.g. Merge & Match's predicted-count counter) so fast
  * typing doesn't recompute on every keystroke. Never used for the primary
  * textarea's own value/line-count, which must stay instantly responsive.

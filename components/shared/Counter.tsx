@@ -17,7 +17,7 @@ const STATE_CLASSES: Record<CounterState, string> = {
 
 /**
  * Live count text (line counts, predicted-merge counts, etc). Color alone
- * never carries the warning/error meaning — callers pass real message text,
+ * never carries the warning/error meaning - callers pass real message text,
  * and the error state is additionally announced via role="alert" per TRD §10.
  */
 export function Counter({

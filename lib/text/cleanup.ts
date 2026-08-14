@@ -1,5 +1,5 @@
 // Letters, numbers, spaces, and - ' & (PRD §5.1 "Strip special characters" /
-// §5.2 "Remove extra symbols") — shared across every tool's cleanup options.
+// §5.2 "Remove extra symbols") - shared across every tool's cleanup options.
 const DISALLOWED_CHARS = /[^a-zA-Z0-9\s\-'&]/g;
 
 export function collapseSpaces(text: string): string {

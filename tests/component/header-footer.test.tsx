@@ -39,4 +39,12 @@ describe("Footer", () => {
       screen.getByText(/nothing is ever sent to a server/i),
     ).toBeInTheDocument();
   });
+
+  it("attributes the suite to PPC Expert", () => {
+    render(<Footer />);
+    expect(screen.getByRole("link", { name: "PPC Expert" })).toHaveAttribute(
+      "href",
+      "https://app.ppcexpert.pro/",
+    );
+  });
 });

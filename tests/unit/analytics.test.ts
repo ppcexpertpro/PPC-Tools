@@ -32,7 +32,7 @@ describe("trackEvent / setAnalyticsReporter", () => {
     });
   });
 
-  it("swaps reporters cleanly — the old one stops receiving events", () => {
+  it("swaps reporters cleanly - the old one stops receiving events", () => {
     const first = jest.fn();
     const second = jest.fn();
 

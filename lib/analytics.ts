@@ -7,7 +7,7 @@ export type InputSizeBucket = "1-100" | "101-1000" | "1000+";
 
 /**
  * TRD §11's five event shapes. Every field is a closed enum/string-literal
- * type or a number — there is no free-text field a caller could populate
+ * type or a number - there is no free-text field a caller could populate
  * with keyword/file content. That's enforced structurally here, not just by
  * convention, so it holds even as new call sites are added later.
  */
@@ -43,7 +43,7 @@ let reporter: Reporter = defaultReporter;
 
 /**
  * Swap in a real transport (GA4 gtag, Plausible, etc.) once an account/site
- * ID exists. Until then every event is logged in dev and dropped in prod —
+ * ID exists. Until then every event is logged in dev and dropped in prod -
  * no vendor is wired in, since that requires credentials only the project
  * owner can supply.
  */

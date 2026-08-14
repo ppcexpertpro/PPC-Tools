@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Keyword Merge & Match — golden path", () => {
+test.describe("Keyword Merge & Match - golden path", () => {
   test("merges two groups in on-screen order and formats the result", async ({
     page,
   }) => {
@@ -63,7 +63,7 @@ test.describe("Keyword Merge & Match — golden path", () => {
   });
 });
 
-test.describe("Keyword Merge & Match — cap exceeded", () => {
+test.describe("Keyword Merge & Match - cap exceeded", () => {
   test("blocks processing above the 20,000-combination cap", async ({
     page,
   }) => {
@@ -80,7 +80,7 @@ test.describe("Keyword Merge & Match — cap exceeded", () => {
   });
 });
 
-test.describe("Keyword Merge & Match — reorder interaction", () => {
+test.describe("Keyword Merge & Match - reorder interaction", () => {
   test("reordering groups via the up/down buttons changes the merge order", async ({
     page,
   }) => {

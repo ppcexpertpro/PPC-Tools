@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { MatchTypeApp } from "./MatchTypeApp";
 
 export const metadata: Metadata = {
-  title: "Keyword Match Type Tool — Broad, Phrase, Exact & BMM | PPC Tools",
+  title: "Keyword Match Type Tool - Broad, Phrase, Exact & BMM | PPC Tools",
   description:
-    "Paste a keyword list and get Broad, Phrase, Exact, and Broad Match Modifier (legacy) formatted output instantly — free, no login, 100% browser-based.",
+    "Paste a keyword list and get Broad, Phrase, Exact, and Broad Match Modifier (legacy) formatted output instantly - free, no login, 100% browser-based.",
 };
 
 export default function KeywordMatchTypePage() {
@@ -16,7 +16,7 @@ export default function KeywordMatchTypePage() {
         </h1>
         <p className="mt-3 text-lg text-ink-muted">
           Paste a list of keywords and convert it to Broad, Phrase, Exact, and
-          BMM (legacy) match types at once — clean, deduplicated, and ready to
+          BMM (legacy) match types at once - clean, deduplicated, and ready to
           paste into Google Ads Editor.
         </p>
 
@@ -41,7 +41,7 @@ export default function KeywordMatchTypePage() {
               Broad Match Modifier (
               <span className="font-mono text-ink">+running +shoes</span>) is
               labeled &quot;legacy&quot; here because Google folded BMM behavior
-              into Phrase match in 2021 — it&apos;s included because exported
+              into Phrase match in 2021 - it&apos;s included because exported
               legacy lists and Bing Ads conventions still use it.
             </p>
             <p>

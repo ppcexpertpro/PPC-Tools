@@ -28,7 +28,7 @@ export function mergeGroups(
   options: MergeOptions = {},
 ): MergeResult {
   // Dedupe within each group first (unconditionally) to reduce
-  // combinatorial blowup — PRD §5.2 edge case, TRD §5.2 pseudocode.
+  // combinatorial blowup - PRD §5.2 edge case, TRD §5.2 pseudocode.
   const nonEmptyGroups = groups
     .map((group) => ({ ...group, lines: dedupeCaseInsensitive(group.lines) }))
     .filter((group) => group.lines.length > 0);

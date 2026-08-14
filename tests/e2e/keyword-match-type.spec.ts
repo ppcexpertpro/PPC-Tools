@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test.describe("Keyword Match Type — golden path", () => {
+test.describe("Keyword Match Type - golden path", () => {
   test("formats a pasted list into the selected match types and copies the result", async ({
     page,
     context,
     browserName,
   }) => {
-    // Playwright can only grant clipboard permissions on Chromium — Firefox
+    // Playwright can only grant clipboard permissions on Chromium - Firefox
     // and WebKit don't expose that automation surface. The write itself
     // (triggered by a real click below) still works everywhere; only the
     // read-back verification is Chromium-only.
@@ -54,7 +54,7 @@ test.describe("Keyword Match Type — golden path", () => {
       const clipboardText = await page.evaluate(() =>
         navigator.clipboard.readText(),
       );
-      // Windows normalizes clipboard line endings to CRLF on write — not an
+      // Windows normalizes clipboard line endings to CRLF on write - not an
       // app bug, so normalize before comparing.
       expect(clipboardText.replace(/\r\n/g, "\n")).toBe(
         "running shoes\nhiking boots",
@@ -98,7 +98,7 @@ test.describe("Keyword Match Type — golden path", () => {
   });
 });
 
-test.describe("Keyword Match Type — limit exceeded", () => {
+test.describe("Keyword Match Type - limit exceeded", () => {
   test("blocks processing above the 5,000-line cap with an explanatory message", async ({
     page,
   }) => {
@@ -109,7 +109,7 @@ test.describe("Keyword Match Type — limit exceeded", () => {
     );
     // Playwright's .fill() actionability polling gets stuck re-measuring a
     // textarea this large in this environment (confirmed via manual repro
-    // that the app itself handles a 5,001-line paste in ~25ms) — set the
+    // that the app itself handles a 5,001-line paste in ~25ms) - set the
     // value the way a real paste does instead: one native value set + one
     // input event.
     await page.locator("#match-type-input").evaluate((element, value) => {
@@ -122,7 +122,7 @@ test.describe("Keyword Match Type — limit exceeded", () => {
     }, tooMany);
 
     await expect(
-      page.getByText(/max 5,000 lines — you have 5,001/i),
+      page.getByText(/max 5,000 lines - you have 5,001/i),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Process" })).toBeDisabled();
   });

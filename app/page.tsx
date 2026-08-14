@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "PPC Keyword Utilities Suite — Free Keyword Tools for Google Ads",
+  title: "PPC Keyword Utilities Suite - Free Keyword Tools for Google Ads",
   description:
     "Free, no-login keyword tools for PPC specialists: match-type formatting, list merging, and negative-keyword mining. Every keyword stays in your browser.",
 };
@@ -21,7 +21,7 @@ const TOOLS: ToolCard[] = [
     glyph: '["]',
     title: "Keyword Match Type",
     description:
-      "Already have a list? Format it into Broad, Phrase, Exact, and BMM — all at once.",
+      "Already have a list? Format it into Broad, Phrase, Exact, and BMM - all at once.",
     cta: "Open tool",
   },
   {
@@ -46,12 +46,15 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <div className="max-w-2xl">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+        <h1 className="animate-fade-up font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
           Paste a list.{" "}
           <span className="text-signal">Get Ads-Editor-ready output.</span>
         </h1>
-        <p className="mt-4 text-lg text-ink-muted">
-          Free, no-login keyword tools for PPC specialists — match-type
+        <p
+          className="animate-fade-up mt-4 text-lg text-ink-muted"
+          style={{ animationDelay: "100ms" }}
+        >
+          Free, no-login keyword tools for PPC specialists - match-type
           formatting, list merging, and negative-keyword mining. Every keyword
           stays in your browser; nothing is ever uploaded to a server.
         </p>

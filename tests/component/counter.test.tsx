@@ -11,7 +11,7 @@ describe("Counter", () => {
   it("announces the error state via role=alert", () => {
     render(
       <Counter state="error">
-        Reduce group sizes — currently would generate 34,500 keywords, max is
+        Reduce group sizes - currently would generate 34,500 keywords, max is
         20,000
       </Counter>,
     );

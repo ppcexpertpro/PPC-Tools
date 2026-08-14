@@ -19,6 +19,10 @@ export interface MatchTypeOutputProps {
   emptyTitle: string;
   emptyDescription: string;
   tool: ToolName;
+  /** True when matchTypes/options/input have changed since `result` was generated - the shown counts are from the last run, not the current settings. */
+  isStale?: boolean;
+  /** Whether Process can currently run - when false (e.g. no match type selected, or over the line cap), stale copy must not tell the user to click a disabled button. */
+  canProcess?: boolean;
 }
 
 /**
@@ -33,6 +37,8 @@ export function MatchTypeOutput({
   emptyTitle,
   emptyDescription,
   tool,
+  isStale = false,
+  canProcess = true,
 }: MatchTypeOutputProps) {
   const [labeledCopyAll, setLabeledCopyAll] = useState(true);
 
@@ -68,6 +74,17 @@ export function MatchTypeOutput({
 
       {showResult && (
         <div className="flex flex-col gap-6">
+          {isStale && (
+            <div
+              role="status"
+              className="rounded-md border border-border-strong bg-surface px-4 py-2 text-sm text-ink-muted"
+            >
+              {canProcess
+                ? "Showing results from before your last change - updating automatically, or click Process now."
+                : "Showing results from before your last change."}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-sm text-ink-muted">
               <input
@@ -90,20 +107,30 @@ export function MatchTypeOutput({
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {matchTypes.map((type) => {
-              const lines = result.results[type] ?? [];
+              const rawLines = result.results[type];
+              const isProcessed = rawLines !== undefined;
+              const lines = rawLines ?? [];
               const definition = MATCH_TYPE_DEFINITIONS[type];
               return (
                 <div
                   key={type}
                   data-testid={`output-block-${type}`}
                   className={cn(
-                    "flex flex-col gap-3 rounded-lg border border-border border-l-4 bg-surface p-4",
-                    definition.colorClass,
+                    "flex flex-col gap-3 rounded-lg border border-border p-4",
+                    definition.softClass,
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-display text-sm font-semibold text-ink">
-                      {definition.label} ({lines.length.toLocaleString()})
+                    <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "h-2.5 w-2.5 shrink-0 rounded-full",
+                          definition.swatchClass,
+                        )}
+                      />
+                      {definition.label} (
+                      {isProcessed ? lines.length.toLocaleString() : "…"})
                     </h3>
                     <CopyButton
                       text={lines.join("\n")}
@@ -113,7 +140,13 @@ export function MatchTypeOutput({
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto rounded-md bg-paper p-2 font-mono text-xs text-ink">
-                    {lines.length === 0 ? (
+                    {!isProcessed ? (
+                      <p className="text-ink-faint">
+                        {canProcess
+                          ? "Not processed yet - updating automatically, or click Process now."
+                          : "Not processed yet."}
+                      </p>
+                    ) : lines.length === 0 ? (
                       <p className="text-ink-faint">No keywords here.</p>
                     ) : (
                       lines.map((line, index) => <div key={index}>{line}</div>)
@@ -127,7 +160,7 @@ export function MatchTypeOutput({
           {result.flagged.length > 0 && (
             <details className="rounded-lg border border-flag/40 bg-flag-soft p-4">
               <summary className="cursor-pointer text-sm font-medium text-flag">
-                Needs review ({result.flagged.length}) — over 80 characters
+                Needs review ({result.flagged.length}) - over 80 characters
               </summary>
               <ul className="mt-2 space-y-1 font-mono text-xs text-ink">
                 {result.flagged.map((line, index) => (

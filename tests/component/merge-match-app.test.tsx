@@ -1,9 +1,10 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MergeMatchApp } from "@/app/keyword-merge-match/MergeMatchApp";
 import { mergeGroups } from "@/lib/algorithms/merge";
 import { convertMatchTypes } from "@/lib/algorithms/matchType";
 import type { MergeWorkerRequest } from "@/lib/workers/merge.worker";
+import { useUIStore } from "@/store/uiStore";
 
 type Listener = (event: MessageEvent) => void;
 
@@ -51,6 +52,40 @@ jest.mock("../../lib/workers/mergeWorkerClient", () => ({
 }));
 
 describe("MergeMatchApp", () => {
+  beforeEach(() => {
+    useUIStore.setState({ toasts: [] });
+  });
+
+  it("removing a group offers an Undo toast that restores it", async () => {
+    render(<MergeMatchApp />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "+ Add group" }),
+    );
+    expect(
+      screen.getAllByRole("textbox", { name: "Group name" }),
+    ).toHaveLength(3);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /remove group 3/i }),
+    );
+    expect(
+      screen.getAllByRole("textbox", { name: "Group name" }),
+    ).toHaveLength(2);
+
+    const toast = useUIStore.getState().toasts.at(-1);
+    expect(toast?.message).toMatch(/removed group 3\./i);
+    expect(toast?.action?.label).toBe("Undo");
+
+    act(() => {
+      toast?.action?.onAction();
+    });
+
+    expect(
+      screen.getAllByRole("textbox", { name: "Group name" }),
+    ).toHaveLength(3);
+  });
+
   it("shows guidance instead of an error when fewer than two groups have content", async () => {
     render(<MergeMatchApp />);
     await userEvent.type(screen.getByLabelText("Group 1 terms"), "best");
@@ -85,6 +120,20 @@ describe("MergeMatchApp", () => {
     ).toBeInTheDocument();
     expect(
       within(broadBlock).getByText("cheap running shoes"),
+    ).toBeInTheDocument();
+  });
+
+  it("processes automatically once group edits settle, without clicking Merge & Process", async () => {
+    render(<MergeMatchApp />);
+
+    await userEvent.click(screen.getByLabelText("Group 1 terms"));
+    await userEvent.paste("best");
+    await userEvent.click(screen.getByLabelText("Group 2 terms"));
+    await userEvent.paste("running shoes");
+
+    const broadBlock = await screen.findByTestId("output-block-broad");
+    expect(
+      within(broadBlock).getByText("best running shoes"),
     ).toBeInTheDocument();
   });
 
@@ -135,5 +184,23 @@ describe("MergeMatchApp", () => {
     expect(
       within(broadBlock).getByText("running shoes best"),
     ).toBeInTheDocument();
+  });
+
+  it("reorders groups via arrow keys on the desktop drag handle", async () => {
+    render(<MergeMatchApp />);
+
+    await userEvent.click(screen.getByLabelText("Group 1 terms"));
+    await userEvent.paste("best");
+    await userEvent.click(screen.getByLabelText("Group 2 terms"));
+    await userEvent.paste("running shoes");
+
+    const dragHandle = screen.getByLabelText(/drag to reorder group 2/i);
+    dragHandle.focus();
+    await userEvent.keyboard("{ArrowUp}");
+
+    const labelInputs = screen.getAllByRole("textbox", { name: "Group name" });
+    expect(
+      labelInputs.map((input) => (input as HTMLInputElement).value),
+    ).toEqual(["Group 2", "Group 1"]);
   });
 });

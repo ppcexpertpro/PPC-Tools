@@ -21,7 +21,7 @@ const DEFAULT_MIN_FREQUENCY = 1;
 
 /**
  * An n-gram is only treated as a stopword when EVERY word in it is a
- * stopword — "for the" is filtered when hiding stopwords, but "buy the"
+ * stopword - "for the" is filtered when hiding stopwords, but "buy the"
  * (a mix) is not, since "buy" is meaningful.
  */
 function isStopwordOnly(token: string): boolean {

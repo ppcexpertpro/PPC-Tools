@@ -7,33 +7,47 @@ export type MatchType = "broad" | "phrase" | "exact" | "bmm";
 interface MatchTypeDefinition {
   label: string;
   example: string;
-  colorClass: string;
+  /** Solid identity color, used for the small leading swatch. */
+  swatchClass: string;
+  /** Soft background tint, used for output cards. */
+  softClass: string;
 }
 
 export const MATCH_TYPE_DEFINITIONS: Record<MatchType, MatchTypeDefinition> = {
   broad: {
     label: "Broad",
     example: "keyword",
-    colorClass: "border-l-mt-broad",
+    swatchClass: "bg-mt-broad",
+    softClass: "bg-mt-broad-soft",
   },
   phrase: {
     label: "Phrase",
     example: '"keyword"',
-    colorClass: "border-l-mt-phrase",
+    swatchClass: "bg-mt-phrase",
+    softClass: "bg-mt-phrase-soft",
   },
   exact: {
     label: "Exact",
     example: "[keyword]",
-    colorClass: "border-l-mt-exact",
+    swatchClass: "bg-mt-exact",
+    softClass: "bg-mt-exact-soft",
   },
   bmm: {
     label: "Broad Match Modifier (legacy)",
     example: "+word +word",
-    colorClass: "border-l-mt-bmm",
+    swatchClass: "bg-mt-bmm",
+    softClass: "bg-mt-bmm-soft",
   },
 };
 
 const DEFAULT_TYPES: MatchType[] = ["broad", "phrase", "exact", "bmm"];
+
+/** Order-independent equality, used to detect when a selection has changed since the last Process run. */
+export function sameMatchTypes(a: MatchType[], b: MatchType[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((type) => bSet.has(type));
+}
 
 type MatchTypeSelectorProps =
   | {
@@ -94,8 +108,7 @@ export function MatchTypeSelector(props: MatchTypeSelectorProps) {
               key={type}
               htmlFor={inputId}
               className={cn(
-                "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border border-l-4 bg-surface px-3 py-2 text-sm",
-                definition.colorClass,
+                "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm",
                 checked && "ring-1 ring-signal",
               )}
             >
@@ -106,6 +119,13 @@ export function MatchTypeSelector(props: MatchTypeSelectorProps) {
                 checked={checked}
                 onChange={handleChange}
                 className="h-4 w-4 accent-signal"
+              />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "h-2.5 w-2.5 shrink-0 rounded-full",
+                  definition.swatchClass,
+                )}
               />
               <span className="text-ink">{definition.label}</span>
               <span className="font-mono text-xs text-ink-faint">

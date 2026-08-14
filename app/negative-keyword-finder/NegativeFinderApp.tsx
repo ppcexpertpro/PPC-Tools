@@ -113,7 +113,7 @@ export function NegativeFinderApp() {
   const hasContent = activeTerms.some((term) => term.trim().length > 0);
 
   useEffect(() => {
-    // No setState here when there's nothing to tokenize — the render below
+    // No setState here when there's nothing to tokenize - the render below
     // already gates on `hasContent`, so a stale result just sits unused.
     if (!hasContent || ngramSizes.length === 0) return;
 
@@ -150,7 +150,7 @@ export function NegativeFinderApp() {
         if (!cancelled) {
           showToast(
             "error",
-            "Something went wrong counting words — try again or reduce the list size.",
+            "Something went wrong counting words - try again or reduce the list size.",
           );
           trackEvent({
             name: "error_occurred",
@@ -184,7 +184,7 @@ export function NegativeFinderApp() {
     if (terms.length > NEG_FINDER_MAX_ROWS) {
       setFileStage({
         status: "error",
-        message: `Max ${NEG_FINDER_MAX_ROWS.toLocaleString()} rows — this file has ${terms.length.toLocaleString()}.`,
+        message: `Max ${NEG_FINDER_MAX_ROWS.toLocaleString()} rows - this file has ${terms.length.toLocaleString()}.`,
       });
       setFileTerms(null);
       trackEvent({ name: "limit_hit", tool: TOOL, limitType: "row_count" });
@@ -202,7 +202,7 @@ export function NegativeFinderApp() {
     if (file.size > NEG_FINDER_MAX_FILE_SIZE_BYTES) {
       setFileStage({
         status: "error",
-        message: `Max file size is 10MB — this file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
+        message: `Max file size is 10MB - this file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
       });
       trackEvent({ name: "limit_hit", tool: TOOL, limitType: "file_size" });
       return;
@@ -213,7 +213,7 @@ export function NegativeFinderApp() {
       setFileStage({
         status: "error",
         message:
-          "Unsupported file type — upload a .csv, .xls, .xlsx, or .txt file.",
+          "Unsupported file type - upload a .csv, .xls, .xlsx, or .txt file.",
       });
       return;
     }
@@ -238,7 +238,7 @@ export function NegativeFinderApp() {
         return;
       }
 
-      // .xls / .xlsx — dynamically imported so the ~450KB xlsx library only
+      // .xls / .xlsx - dynamically imported so the ~450KB xlsx library only
       // loads for users who actually upload an Excel file, not on every
       // visit to this route (paste and CSV/TXT paths never need it).
       const { parseExcel } = await import("@/lib/file-parsing/excel");
@@ -254,7 +254,7 @@ export function NegativeFinderApp() {
       setFileStage({
         status: "error",
         message:
-          "We couldn't read this file — check it's a valid CSV/XLS/XLSX.",
+          "We couldn't read this file - check it's a valid CSV/XLS/XLSX.",
       });
       trackEvent({
         name: "error_occurred",
@@ -271,7 +271,13 @@ export function NegativeFinderApp() {
 
   const handlePasteChange = (value: string) => {
     setPasteText(value);
-    if (fileTerms) resetFileState();
+    if (fileTerms) {
+      resetFileState();
+      showToast(
+        "info",
+        "Switched to your pasted text - the uploaded file is no longer active. Upload it again to bring it back.",
+      );
+    }
   };
 
   const toggleNegative = (token: string) => {
@@ -291,7 +297,7 @@ export function NegativeFinderApp() {
 
   // Memoized: without this, every render (e.g. clicking one token, which
   // only changes selectedNegatives) re-sorts every visible frequency table
-  // from scratch — a real INP cost once token counts get into the thousands.
+  // from scratch - a real INP cost once token counts get into the thousands.
   const sortedRowsBySize = useMemo(() => {
     const result: Partial<Record<NgramSize, FrequencyRow[]>> = {};
     for (const size of ngramSizes) {
@@ -385,7 +391,7 @@ export function NegativeFinderApp() {
                 htmlFor="column-picker"
                 className="text-sm font-medium text-ink"
               >
-                We couldn&apos;t automatically detect a search term column —
+                We couldn&apos;t automatically detect a search term column -
                 please select one:
               </label>
               <select

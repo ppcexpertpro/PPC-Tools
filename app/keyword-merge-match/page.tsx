@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { MergeMatchApp } from "./MergeMatchApp";
 
 export const metadata: Metadata = {
-  title: "Keyword Merge & Match Tool — Combine Keyword Lists | PPC Tools",
+  title: "Keyword Merge & Match Tool - Combine Keyword Lists | PPC Tools",
   description:
-    "Combine modifier, core-term, and suffix lists into every keyword permutation, then apply match types instantly — free, no login, 100% browser-based.",
+    "Combine modifier, core-term, and suffix lists into every keyword permutation, then apply match types instantly - free, no login, 100% browser-based.",
 };
 
 export default function KeywordMergeMatchPage() {
@@ -15,7 +15,7 @@ export default function KeywordMergeMatchPage() {
           Keyword Merge &amp; Match Tool
         </h1>
         <p className="mt-3 text-lg text-ink-muted">
-          Combine 2–5 keyword groups — modifiers, core terms, suffixes — into
+          Combine 2–5 keyword groups - modifiers, core terms, suffixes - into
           every permutation, then apply match types to the merged list at once.
         </p>
 
@@ -26,20 +26,20 @@ export default function KeywordMergeMatchPage() {
           <div className="mt-3 flex flex-col gap-2">
             <p>
               Each group is a list of terms. The tool builds every combination
-              across groups in the order they&apos;re arranged on screen — a
+              across groups in the order they&apos;re arranged on screen - a
               &quot;best/top/cheap&quot; modifier group combined with a
               &quot;running shoes/hiking boots&quot; core group produces six
               keywords: every modifier paired with every core term.
             </p>
             <p>
               Groups are reorderable (drag the handle on desktop, or use the
-              up/down buttons on mobile) because order matters — moving a group
+              up/down buttons on mobile) because order matters - moving a group
               changes where its terms land in each merged phrase, not just how
               many combinations you get.
             </p>
             <p>
               The live counter updates as you type so you can see the
-              combination count before merging — predicted output is capped at
+              combination count before merging - predicted output is capped at
               20,000 keywords per run.
             </p>
           </div>

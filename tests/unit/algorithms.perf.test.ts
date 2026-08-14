@@ -25,7 +25,7 @@ describe("performance regression: core algorithms against fixed fixtures", () =>
     const elapsed = performance.now() - start;
 
     expect(result.validCount).toBe(10000);
-    // Generous budget — this environment has shown 2-3x slowdowns under
+    // Generous budget - this environment has shown 2-3x slowdowns under
     // full-suite CPU contention; the point is catching a real algorithmic
     // regression (e.g. accidental O(n^2)), not chasing micro-variance.
     expect(elapsed).toBeLessThan(5000);

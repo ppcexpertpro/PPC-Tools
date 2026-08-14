@@ -86,9 +86,9 @@ describe("tokenizeAndCount", () => {
       minFrequency: 1,
     });
 
-    // "buy the" mixes a real word with a stopword — kept.
+    // "buy the" mixes a real word with a stopword - kept.
     expect(result[2]?.map((row) => row.token)).toContain("buy the");
-    // "the shoes" also mixes — kept.
+    // "the shoes" also mixes - kept.
     expect(result[2]?.map((row) => row.token)).toContain("the shoes");
   });
 

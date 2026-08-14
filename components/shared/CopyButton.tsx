@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useUIStore } from "@/store/uiStore";
 import { Button, type ButtonProps } from "@/components/shared/Button";
+import { cn } from "@/lib/cn";
 
 type CopyState = "idle" | "copied" | "manual";
 
@@ -49,7 +50,7 @@ export function CopyButton({
       setState("manual");
       showToast(
         "error",
-        "Couldn't copy automatically — select the text below and copy manually",
+        "Couldn't copy automatically - select the text below and copy manually",
       );
     }
   };
@@ -59,16 +60,18 @@ export function CopyButton({
       <Button
         variant={variant}
         onClick={handleClick}
-        className={className}
+        className={cn(state === "copied" && "animate-copy-success", className)}
         disabled={text.length === 0}
       >
-        {state === "copied" ? (
-          <>
-            <span aria-hidden="true">✓</span> Copied!
-          </>
-        ) : (
-          label
-        )}
+        <span key={state} className="animate-fade-in inline-flex items-center gap-1.5">
+          {state === "copied" ? (
+            <>
+              <span aria-hidden="true">✓</span> Copied!
+            </>
+          ) : (
+            label
+          )}
+        </span>
       </Button>
       {state === "manual" && (
         <textarea

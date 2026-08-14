@@ -6,7 +6,7 @@ export interface SkeletonBlockProps {
 }
 
 /**
- * Only mount this past the ~300ms processing threshold (UX-DESIGN §3.1) —
+ * Only mount this past the ~300ms processing threshold (UX-DESIGN §3.1) -
  * small inputs should render real output before a skeleton would ever show.
  */
 export function SkeletonBlock({ lines = 4, className }: SkeletonBlockProps) {

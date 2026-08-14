@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test.describe("Negative Keyword Finder — paste path", () => {
+test.describe("Negative Keyword Finder - paste path", () => {
   test("tokenizes pasted rows automatically and lets the user select negatives", async ({
     page,
     context,
     browserName,
   }) => {
-    // Playwright can only grant clipboard permissions on Chromium — Firefox
+    // Playwright can only grant clipboard permissions on Chromium - Firefox
     // and WebKit don't expose that automation surface. The write itself
     // (triggered by a real click below) still works everywhere; only the
     // read-back verification is Chromium-only.
@@ -83,7 +83,7 @@ test.describe("Negative Keyword Finder — paste path", () => {
   });
 });
 
-test.describe("Negative Keyword Finder — file upload path", () => {
+test.describe("Negative Keyword Finder - file upload path", () => {
   test("auto-detects the search-term column from an uploaded CSV", async ({
     page,
   }) => {
@@ -120,7 +120,7 @@ test.describe("Negative Keyword Finder — file upload path", () => {
   });
 });
 
-test.describe("Negative Keyword Finder — ambiguous column path", () => {
+test.describe("Negative Keyword Finder - ambiguous column path", () => {
   test("blocks processing until the user manually picks a column", async ({
     page,
   }) => {
@@ -147,7 +147,7 @@ test.describe("Negative Keyword Finder — ambiguous column path", () => {
   });
 });
 
-test.describe("Negative Keyword Finder — export path", () => {
+test.describe("Negative Keyword Finder - export path", () => {
   test("downloads the selected negatives as a .txt file with the chosen match type", async ({
     page,
   }) => {

@@ -29,8 +29,9 @@ export interface GroupCardProps {
 
 /**
  * Draggable input group (Implementation Plan Phase 3). Desktop reorders via
- * the drag handle; mobile swaps to up/down buttons (UX-DESIGN §3.2 — touch
- * drag is unreliable in a scrolling column).
+ * the drag handle (mouse drag, or arrow-up/down when focused); mobile swaps
+ * to up/down buttons (UX-DESIGN §3.2 - touch drag is unreliable in a
+ * scrolling column).
  */
 export function GroupCard({
   group,
@@ -67,8 +68,17 @@ export function GroupCard({
           draggable
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
-          aria-label={`Drag to reorder ${group.label}`}
-          className="hidden h-8 w-8 shrink-0 cursor-grab select-none items-center justify-center text-ink-faint hover:text-ink-muted active:cursor-grabbing sm:flex"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              onMoveUp();
+            } else if (event.key === "ArrowDown") {
+              event.preventDefault();
+              onMoveDown();
+            }
+          }}
+          aria-label={`Drag to reorder ${group.label}, or use arrow up and arrow down`}
+          className="hidden h-8 w-8 shrink-0 cursor-grab select-none items-center justify-center text-ink-faint hover:text-ink-muted active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:flex"
         >
           ⠿
         </button>

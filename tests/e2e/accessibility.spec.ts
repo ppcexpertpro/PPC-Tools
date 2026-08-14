@@ -19,14 +19,14 @@ async function expectNoSeriousOrCriticalViolations(page: import("@playwright/tes
   expect(seriousOrCritical).toEqual([]);
 }
 
-test.describe("Accessibility — suite home", () => {
+test.describe("Accessibility - suite home", () => {
   test("home page has no critical or serious violations", async ({ page }) => {
     await page.goto("/");
     await expectNoSeriousOrCriticalViolations(page);
   });
 });
 
-test.describe("Accessibility — empty/initial states", () => {
+test.describe("Accessibility - empty/initial states", () => {
   test("keyword-match-type empty state", async ({ page }) => {
     await page.goto("/keyword-match-type");
     await expectNoSeriousOrCriticalViolations(page);
@@ -43,7 +43,7 @@ test.describe("Accessibility — empty/initial states", () => {
   });
 });
 
-test.describe("Accessibility — keyword-merge-match with results", () => {
+test.describe("Accessibility - keyword-merge-match with results", () => {
   test("no violations once a merge has been processed", async ({ page }) => {
     await page.goto("/keyword-merge-match");
     await page.getByLabel("Group 1 terms").fill("best\ncheap");
@@ -55,7 +55,7 @@ test.describe("Accessibility — keyword-merge-match with results", () => {
   });
 });
 
-test.describe("Accessibility — negative-keyword-finder column picker", () => {
+test.describe("Accessibility - negative-keyword-finder column picker", () => {
   test("no violations while the manual column picker is blocking", async ({
     page,
   }) => {

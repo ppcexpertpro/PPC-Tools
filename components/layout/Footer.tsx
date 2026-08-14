@@ -16,8 +16,20 @@ export function Footer() {
           </p>
           <p className="mt-2 text-sm text-ink-muted">
             Free, browser-based keyword tools for PPC specialists. Every list
-            you paste or upload is processed entirely on your device — nothing
+            you paste or upload is processed entirely on your device - nothing
             is ever sent to a server.
+          </p>
+          <p className="mt-3 text-xs text-ink-faint">
+            Built by{" "}
+            <a
+              href="https://app.ppcexpert.pro/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-ink-muted underline underline-offset-2 hover:text-signal"
+            >
+              PPC Expert
+            </a>{" "}
+            - search engine strategy for local service businesses.
           </p>
         </div>
         <nav aria-label="Tools" className="flex flex-col gap-2 text-sm">

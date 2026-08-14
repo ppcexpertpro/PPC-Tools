@@ -30,7 +30,7 @@ self.onmessage = (event: MessageEvent<MergeWorkerRequest>) => {
   }
 
   // Merge's own options (lowercase/removeExtraSymbols/removeDuplicates)
-  // already cleaned the combinations — convertMatchTypes is reused here only
+  // already cleaned the combinations - convertMatchTypes is reused here only
   // for match-type wrapping and the 80-char flagging pass (TRD §5.2), not a
   // second cleanup pass.
   const matchTypeResult = convertMatchTypes(
