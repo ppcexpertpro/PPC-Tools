@@ -75,6 +75,16 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    /*
+     * The header is sticky, so an anchored jump would otherwise land its
+     * target underneath the bar. Clears the header plus a little breathing
+     * room above the heading it scrolled to.
+     */
+    scroll-padding-top: 5rem;
+  }
+
   body {
     background-color: var(--color-paper);
     color: var(--color-ink);
@@ -200,6 +210,57 @@
 .img-edge {
   outline: 1px solid rgb(0 0 0 / 0.1);
   outline-offset: -1px;
+}
+
+/*
+ * Film grain over the page ground. Sits at z-index -1, so it paints on top of
+ * the body's flat `paper` fill but underneath every opaque surface - cards,
+ * header and footer stay clean, and only the empty space between them picks
+ * up texture. That's the point: large flat expanses are what read as sterile,
+ * not the panels sitting on them.
+ *
+ * Fixed rather than absolute so the grain doesn't travel with the scroll -
+ * a moving noise field is a texture, a stationary one is a paper stock.
+ */
+.page-grain {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/*
+ * Ambient light source behind a section's leading corner. A single large,
+ * heavily-feathered radial in the accent hue - the alternative to leaving a
+ * hero as type on a flat fill is not a dark band (that reads as a copy-paste
+ * seam) but a tint of the palette already in use.
+ *
+ * The host only needs `position: relative`; leaving its `z-index` at `auto`
+ * keeps it out of the stacking context so the negative-z child slides behind
+ * its own text without escaping the page ground.
+ */
+.ambient-wash {
+  position: relative;
+}
+
+.ambient-wash::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -20rem;
+  right: -16rem;
+  width: 48rem;
+  height: 48rem;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgb(14 110 92 / 0.12) 0%,
+    rgb(14 110 92 / 0.05) 42%,
+    rgb(14 110 92 / 0) 70%
+  );
 }
 
 /*

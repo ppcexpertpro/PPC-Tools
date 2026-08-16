@@ -47,4 +47,25 @@ describe("Footer", () => {
       "https://app.ppcexpert.pro/",
     );
   });
+
+  it("links to the privacy policy and terms of use", () => {
+    render(<Footer />);
+    expect(
+      screen.getByRole("link", { name: "Privacy policy" }),
+    ).toHaveAttribute("href", "/privacy");
+    expect(screen.getByRole("link", { name: "Terms of use" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+  });
+
+  it("separates the tool and legal navs by accessible name", () => {
+    render(<Footer />);
+    expect(
+      screen.getByRole("navigation", { name: "Tools" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Legal" }),
+    ).toBeInTheDocument();
+  });
 });

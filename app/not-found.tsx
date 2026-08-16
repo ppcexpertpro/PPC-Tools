@@ -9,7 +9,13 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden px-4 py-16 text-center sm:px-6">
+    // `dvh`, not `vh`: on iOS Safari `vh` is measured against the *expanded*
+    // viewport, so a `60vh` centred block jumps as the URL bar collapses.
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="relative flex min-h-[60dvh] flex-col items-center justify-center overflow-hidden px-4 py-16 text-center outline-none sm:px-6"
+    >
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 flex select-none items-center justify-center text-[16rem] font-bold tracking-tight text-transparent [-webkit-text-stroke:2px_var(--color-border-strong)] sm:text-[22rem]"

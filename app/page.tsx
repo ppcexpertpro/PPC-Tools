@@ -61,13 +61,17 @@ const TOOLS: ToolCard[] = [
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pt-16">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto max-w-6xl px-4 pb-20 pt-12 outline-none sm:px-6 sm:pt-16"
+    >
       {/*
         Split hero rather than centered stack: the copy carries the promise and
         the illustration carries the proof, so neither has to compete for the
         optical center. Falls back to a single column below lg.
       */}
-      <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
+      <section className="ambient-wash grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
         <div className="max-w-2xl">
           <p
             className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-border bg-surface py-1.5 pl-2.5 pr-3.5 font-mono text-xs text-ink-muted shadow-raised"

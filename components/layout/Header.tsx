@@ -6,7 +6,13 @@ export function Header() {
   return (
     // Sticky so the tool switcher stays reachable while scrolling a long
     // output list - the header is how you move between tools mid-task.
-    <header className="sticky top-0 z-40 border-b border-border bg-surface">
+    //
+    // Frosted rather than solid: a long output list scrolling under an opaque
+    // bar just vanishes at the seam, whereas a blurred pass-through keeps the
+    // bar reading as a layer above the page. `bg-surface` stays as the base
+    // declaration so browsers without `backdrop-filter` get an opaque bar
+    // instead of unreadable text over live content.
+    <header className="sticky top-0 z-40 border-b border-border bg-surface backdrop-blur-lg backdrop-saturate-150 supports-backdrop-filter:bg-surface/80">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
           href="/"

@@ -11,7 +11,11 @@ export const metadata: Metadata = {
 
 export default function NegativeKeywordFinderPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto max-w-6xl px-4 py-10 outline-none sm:px-6"
+    >
       <ToolPageHeader
         illustration={negativeFinderArt}
         title="Negative Keyword Finder"

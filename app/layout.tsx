@@ -74,6 +74,20 @@ export default function RootLayout({
       <body
         className={`${geist.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
+        {/*
+          First focusable thing in the document. The negative-keyword finder
+          puts a file input, a dropzone and four n-gram controls between the
+          header and the frequency table, so a keyboard user landing on a tool
+          page otherwise tabs through the whole chrome before reaching the
+          textarea they came for.
+        */}
+        <a
+          href="#main-content"
+          className="sr-only rounded-md bg-signal text-sm font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:px-4 focus:shadow-float focus:outline-none focus:ring-2 focus:ring-signal focus:ring-offset-2 focus:ring-offset-paper"
+        >
+          Skip to content
+        </a>
+        <div aria-hidden="true" className="page-grain" />
         <div className="flex min-h-dvh flex-col">
           <Header />
           <div className="flex-1">{children}</div>
