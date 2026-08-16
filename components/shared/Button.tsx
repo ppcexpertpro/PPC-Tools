@@ -14,11 +14,20 @@ export interface ButtonProps extends Omit<
   children: ReactNode;
 }
 
+/*
+ * Disabled primary used to be `bg-signal/50` under white text - about 2.1:1,
+ * well under AA and effectively unreadable. A disabled control should read as
+ * inert rather than as a washed-out version of the live one, so both variants
+ * now resolve to the same recessed treatment: ink-faint on paper is 4.68:1.
+ */
+const DISABLED_CLASSES =
+  "disabled:bg-paper disabled:text-ink-faint disabled:border-border disabled:shadow-none";
+
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    "bg-signal text-white shadow-raised hover:bg-signal-strong disabled:bg-signal/50 disabled:shadow-none",
-  secondary:
-    "bg-surface text-ink border border-border-strong shadow-raised hover:bg-paper disabled:text-ink-faint disabled:border-border disabled:shadow-none",
+  // Both variants carry a border at all times - primary's is transparent -
+  // so toggling to the disabled treatment never changes the box size.
+  primary: `bg-signal text-white border border-transparent shadow-raised hover:bg-signal-strong ${DISABLED_CLASSES}`,
+  secondary: `bg-surface text-ink border border-border-strong shadow-raised hover:bg-paper ${DISABLED_CLASSES}`,
 };
 
 export function Button({

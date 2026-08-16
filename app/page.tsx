@@ -76,9 +76,18 @@ export default function HomePage() {
             <ShieldIcon className="h-3.5 w-3.5 text-signal" />
             Runs entirely in your browser
           </p>
+          {/*
+            `Ads-Editor-ready` is held together with `whitespace-nowrap`: its
+            internal hyphens are break opportunities, and without this the
+            heading splits as "Get Ads-" / "Editor-ready output." The break
+            then falls at the sentence boundary, where it belongs.
+          */}
           <h1 className="animate-fade-up mt-5 font-display text-4xl font-bold tracking-tight text-ink sm:text-5xl">
             Paste a list.{" "}
-            <span className="text-signal">Get Ads-Editor-ready output.</span>
+            <span className="text-signal">
+              Get <span className="whitespace-nowrap">Ads-Editor-ready</span>{" "}
+              output.
+            </span>
           </h1>
           <p
             className="animate-fade-up mt-4 max-w-[60ch] text-lg leading-relaxed text-ink-muted"
@@ -127,16 +136,21 @@ export default function HomePage() {
         encode which tool most people land on first, and the fourth tile spends
         the leftover span on the privacy claim rather than padding the row out.
       */}
-      <section className="mt-20 sm:mt-24">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.12em] text-ink-faint">
-          Three tools
-        </h2>
+      <section className="mt-28 sm:mt-40">
         {/*
-          `items-start` stops the grid stretching every tile to the tallest in
-          its row - without it a short tile grows a dead band between its copy
-          and its preview. Uneven tile heights are the point of a bento.
+          Kept for document structure but not shown: a visible "Three tools"
+          eyebrow is a label that describes the layout rather than saying
+          anything, and the tiles below are already self-evident.
         */}
-        <div className="animate-stagger mt-6 grid items-start gap-5 lg:grid-cols-5">
+        <h2 className="sr-only">Tools in this suite</h2>
+        {/*
+          Gapless bento. Spans are 3+2 then 2+3 across five columns, so both
+          rows fill exactly; `grid-flow-dense` backfills if a span ever changes.
+          Tiles stretch to a shared row height and each preview panel takes the
+          slack via `flex-1`, so equalising heights never opens a dead band
+          between a tile's copy and its artwork.
+        */}
+        <div className="animate-stagger grid grid-flow-dense gap-5 lg:grid-cols-5">
           {TOOLS.map((tool, index) => (
             <Link
               key={tool.href}
@@ -163,15 +177,19 @@ export default function HomePage() {
                 </span>
               </div>
               {/*
-                Full-bleed to the card's own corners, so there is no inner
-                radius to keep concentric with the outer one.
+                Panel and artwork share the same white ground, so the letterbox
+                `object-contain` leaves is invisible - the preview reads as one
+                continuous surface at any height the row settles on.
               */}
-              <Image
-                src={tool.image}
-                alt=""
-                className="w-full border-t border-border"
-                sizes="(min-width: 1024px) 40vw, 100vw"
-              />
+              <div className="relative min-h-44 flex-1 overflow-hidden border-t border-border bg-surface">
+                <Image
+                  src={tool.image}
+                  alt=""
+                  fill
+                  className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                  sizes="(min-width: 1024px) 40vw, 100vw"
+                />
+              </div>
             </Link>
           ))}
 
@@ -193,12 +211,16 @@ export default function HomePage() {
                 of, because there is no server to upload to.
               </p>
             </div>
-            <Image
-              src={privacyArt}
-              alt=""
-              className="w-full border-t border-signal/20"
-              sizes="(min-width: 1024px) 58vw, 100vw"
-            />
+            {/* Panel ground matches this artwork's tinted background, same trick. */}
+            <div className="relative min-h-44 flex-1 overflow-hidden border-t border-signal/20 bg-signal-soft">
+              <Image
+                src={privacyArt}
+                alt=""
+                fill
+                className="object-contain"
+                sizes="(min-width: 1024px) 58vw, 100vw"
+              />
+            </div>
           </div>
         </div>
       </section>
