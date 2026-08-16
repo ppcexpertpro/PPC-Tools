@@ -1,0 +1,43 @@
+<!-- viewBox is cropped to the drawing's bounds plus a 16px margin, so the asset
+     carries no dead space that would inflate the card it renders in. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="464" height="228" viewBox="8 36 464 228" fill="none" role="img">
+  <rect width="480" height="300" fill="#ffffff"/>
+
+  <!-- Input list -->
+  <rect x="24" y="52" width="150" height="196" rx="12" fill="#f7f8fa" stroke="#dde1e7"/>
+  <text x="40" y="78" font-family="ui-monospace, monospace" font-size="11" fill="#65707d" letter-spacing="0.5">INPUT</text>
+  <rect x="40" y="92" width="106" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="112" width="88" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="132" width="118" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="152" width="72" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="172" width="102" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="192" width="84" height="9" rx="4.5" fill="#b9c0cb"/>
+  <rect x="40" y="212" width="110" height="9" rx="4.5" fill="#b9c0cb"/>
+
+  <!-- Fan-out connectors -->
+  <path d="M182 150 H206 Q214 150 214 142 V78 Q214 70 222 70 H244" stroke="#b9c0cb" stroke-width="1.5" fill="none"/>
+  <path d="M182 150 H206 Q214 150 214 142 V122 Q214 114 222 114 H244" stroke="#b9c0cb" stroke-width="1.5" fill="none"/>
+  <path d="M182 150 H206 Q214 150 214 158 V178 Q214 186 222 186 H244" stroke="#b9c0cb" stroke-width="1.5" fill="none"/>
+  <path d="M182 150 H206 Q214 150 214 158 V222 Q214 230 222 230 H244" stroke="#b9c0cb" stroke-width="1.5" fill="none"/>
+  <circle cx="182" cy="150" r="4" fill="#0e6e5c"/>
+
+  <!-- Broad -->
+  <rect x="244" y="52" width="212" height="36" rx="10" fill="#eceef1"/>
+  <circle cx="264" cy="70" r="5" fill="#4b5567"/>
+  <text x="280" y="75" font-family="ui-monospace, monospace" font-size="13" fill="#14181f">running shoes</text>
+
+  <!-- Phrase -->
+  <rect x="244" y="96" width="212" height="36" rx="10" fill="#e4f3ef"/>
+  <circle cx="264" cy="114" r="5" fill="#0e6e5c"/>
+  <text x="280" y="119" font-family="ui-monospace, monospace" font-size="13" fill="#14181f">"running shoes"</text>
+
+  <!-- Exact -->
+  <rect x="244" y="168" width="212" height="36" rx="10" fill="#f1e9fb"/>
+  <circle cx="264" cy="186" r="5" fill="#7a3fc2"/>
+  <text x="280" y="191" font-family="ui-monospace, monospace" font-size="13" fill="#14181f">[running shoes]</text>
+
+  <!-- BMM -->
+  <rect x="244" y="212" width="212" height="36" rx="10" fill="#faf3df"/>
+  <circle cx="264" cy="230" r="5" fill="#8a6600"/>
+  <text x="280" y="235" font-family="ui-monospace, monospace" font-size="13" fill="#14181f">+running +shoes</text>
+</svg>

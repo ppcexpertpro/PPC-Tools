@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, Manrope, JetBrains_Mono } from "next/font/google";
+import { Geist, Manrope, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ToastViewport } from "@/components/shared/Toast";
 import "./globals.css";
 
-const inter = Inter({
+// Geist rather than Inter for body text: Inter is the default of so many
+// dashboards that it reads as "unstyled", and Geist's tighter apertures and
+// squarer terminals sit closer to the mono/bracket character of this suite.
+const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-geist",
   display: "swap",
 });
 
@@ -45,7 +48,9 @@ export const metadata: Metadata = {
       "Free, browser-based PPC keyword tools - match type formatting, merge & match, and negative keyword mining.",
   },
   twitter: {
-    card: "summary",
+    // The generated `opengraph-image` is 1200x630, which needs the large card -
+    // a plain `summary` would crop it to a square thumbnail.
+    card: "summary_large_image",
     title: "PPC Keyword Utilities Suite",
     description:
       "Free, browser-based PPC keyword tools - match type formatting, merge & match, and negative keyword mining.",
@@ -67,9 +72,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${geist.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-dvh flex-col">
           <Header />
           <div className="flex-1">{children}</div>
           <Footer />

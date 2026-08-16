@@ -2,6 +2,7 @@
 
 import { List, type RowComponentProps } from "react-window";
 import type { FrequencyRow } from "@/lib/algorithms/tokenize";
+import { ChevronDownIcon } from "@/components/shared/icons";
 import { cn } from "@/lib/cn";
 
 export type SortColumn = "token" | "count" | "pctOfRows";
@@ -44,15 +45,21 @@ function FrequencyTableRow({
         aria-pressed={isSelected}
         aria-label={`${row.token}, ${row.count.toLocaleString()} ${row.count === 1 ? "occurrence" : "occurrences"}, ${(row.pctOfRows * 100).toFixed(1)}% of rows`}
         className={cn(
-          "grid h-10 w-full grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-border px-3 text-left text-sm hover:bg-paper",
+          "grid h-10 w-full grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-border px-3 text-left text-sm",
+          "transition-colors duration-150 ease-out hover:bg-paper",
+          "focus-visible:outline-none focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-signal",
           isSelected && "bg-signal-soft",
         )}
       >
         <span className="truncate font-mono text-ink">{row.token}</span>
-        <span className="w-16 text-right font-mono text-ink-muted">
+        {/*
+          Counts and percentages re-sort and re-render constantly; tabular
+          figures keep the two right-hand columns from shivering as they do.
+        */}
+        <span className="w-16 text-right font-mono tabular-nums text-ink-muted">
           {row.count.toLocaleString()}
         </span>
-        <span className="w-16 text-right font-mono text-ink-muted">
+        <span className="w-16 text-right font-mono tabular-nums text-ink-muted">
           {(row.pctOfRows * 100).toFixed(1)}%
         </span>
       </button>
@@ -85,14 +92,24 @@ function SortableHeader({
       aria-label={`Sort by ${label}${sortState}`}
       onClick={() => onSortChange(column)}
       className={cn(
-        "flex items-center gap-1 text-xs font-medium uppercase text-ink-muted hover:text-ink",
+        "flex min-h-8 items-center gap-1 rounded-sm text-xs font-medium uppercase tracking-wide text-ink-muted",
+        "transition-colors duration-200 ease-out hover:text-ink",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
         align === "right" && "w-16 justify-end",
       )}
     >
       {label}
-      {isActive && (
-        <span aria-hidden="true">{sortDirection === "asc" ? "▲" : "▼"}</span>
-      )}
+      {/*
+        The caret stays mounted and rotates between directions rather than
+        being swapped out, so flipping the sort reads as one continuous move.
+      */}
+      <ChevronDownIcon
+        className={cn(
+          "h-3.5 w-3.5 transition-[transform,opacity] duration-200 ease-out",
+          isActive ? "opacity-100" : "opacity-0",
+          isActive && sortDirection === "asc" && "rotate-180",
+        )}
+      />
     </button>
   );
 }
@@ -107,14 +124,16 @@ export function FrequencyTable({
 }: FrequencyTableProps) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border p-4 text-sm text-ink-muted">
+      <p className="rounded-xl border border-dashed border-border-strong p-4 text-sm text-ink-muted">
         No tokens match the current filters.
       </p>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border">
+    // `overflow-hidden` so the virtualized rows are clipped by the container's
+    // corners instead of squaring them off at the bottom edge.
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
       <div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-border bg-paper px-3 py-2">
 
         <SortableHeader

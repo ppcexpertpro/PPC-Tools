@@ -2,6 +2,12 @@
 
 import type { DragEvent } from "react";
 import { Textarea } from "@/components/shared/Textarea";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CloseIcon,
+  GripIcon,
+} from "@/components/shared/icons";
 import { cn } from "@/lib/cn";
 
 export interface MergeGroupData {
@@ -58,8 +64,10 @@ export function GroupCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        "flex w-full flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:w-64",
-        isDragging && "opacity-50",
+        // 24px outer, 16px padding, 8px inner textarea - concentric.
+        "flex w-full flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-raised sm:w-64",
+        "transition-[opacity,box-shadow,border-color] duration-200 ease-out",
+        isDragging && "opacity-50 shadow-float",
       )}
     >
       <div className="flex items-center gap-1">
@@ -78,9 +86,9 @@ export function GroupCard({
             }
           }}
           aria-label={`Drag to reorder ${group.label}, or use arrow up and arrow down`}
-          className="hidden h-8 w-8 shrink-0 cursor-grab select-none items-center justify-center text-ink-faint hover:text-ink-muted active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:flex"
+          className="hit-area hidden h-8 w-8 shrink-0 cursor-grab select-none items-center justify-center rounded-md text-ink-faint transition-[background-color,color] duration-200 ease-out hover:bg-paper hover:text-ink-muted active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:flex"
         >
-          ⠿
+          <GripIcon className="h-4 w-4" />
         </button>
         <label htmlFor={labelId} className="sr-only">
           Group name
@@ -98,18 +106,18 @@ export function GroupCard({
             onClick={onMoveUp}
             disabled={index === 0}
             aria-label={`Move ${group.label} up`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink-muted disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-muted transition-[background-color,transform] duration-200 ease-out hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal active:scale-[0.96] disabled:opacity-30 disabled:active:scale-100"
           >
-            ↑
+            <ArrowUpIcon className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={onMoveDown}
             disabled={index === totalGroups - 1}
             aria-label={`Move ${group.label} down`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink-muted disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-muted transition-[background-color,transform] duration-200 ease-out hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal active:scale-[0.96] disabled:opacity-30 disabled:active:scale-100"
           >
-            ↓
+            <ArrowDownIcon className="h-4 w-4" />
           </button>
         </div>
         {canRemove && (
@@ -117,9 +125,9 @@ export function GroupCard({
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${group.label}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink-faint hover:text-danger"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-faint transition-[background-color,color,transform] duration-200 ease-out hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal active:scale-[0.96]"
           >
-            ×
+            <CloseIcon className="h-4 w-4" />
           </button>
         )}
       </div>

@@ -1,0 +1,36 @@
+<!-- viewBox cropped to the drawing's bounds plus a 16px margin. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="448" height="228" viewBox="24 36 448 228" fill="none" role="img">
+  <!-- Ground matches the tinted card this sits in, so the artwork reads as part of the surface. -->
+  <rect width="480" height="300" fill="#e4f3ef"/>
+
+  <!-- Browser frame: everything happens inside this boundary -->
+  <rect x="40" y="52" width="252" height="196" rx="14" fill="#ffffff" stroke="#0e6e5c" stroke-width="1.5"/>
+  <path d="M40 84 H292" stroke="#0e6e5c" stroke-width="1.5" opacity="0.35"/>
+  <circle cx="60" cy="68" r="4" fill="#b9c0cb"/>
+  <circle cx="76" cy="68" r="4" fill="#b9c0cb"/>
+  <circle cx="92" cy="68" r="4" fill="#b9c0cb"/>
+  <rect x="112" y="63" width="160" height="10" rx="5" fill="#dde1e7"/>
+
+  <text x="62" y="114" font-family="ui-monospace, monospace" font-size="11" fill="#0e6e5c" letter-spacing="0.5">PROCESSED HERE</text>
+  <rect x="62" y="128" width="150" height="9" rx="4.5" fill="#0e6e5c" opacity="0.55"/>
+  <rect x="62" y="148" width="118" height="9" rx="4.5" fill="#0e6e5c" opacity="0.44"/>
+  <rect x="62" y="168" width="164" height="9" rx="4.5" fill="#0e6e5c" opacity="0.34"/>
+  <rect x="62" y="188" width="130" height="9" rx="4.5" fill="#0e6e5c" opacity="0.26"/>
+  <rect x="62" y="208" width="146" height="9" rx="4.5" fill="#0e6e5c" opacity="0.18"/>
+
+  <!-- Severed route to the server -->
+  <path d="M300 150 H332" stroke="#0a5346" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.45"/>
+  <path d="M378 150 H410" stroke="#0a5346" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.45"/>
+  <circle cx="355" cy="150" r="19" fill="#ffffff"/>
+  <path d="M346 141 L364 159 M364 141 L346 159" stroke="#c0293a" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Server, never reached -->
+  <g opacity="0.5">
+    <rect x="410" y="110" width="46" height="26" rx="7" fill="#ffffff" stroke="#0a5346" stroke-opacity="0.3"/>
+    <rect x="410" y="142" width="46" height="26" rx="7" fill="#ffffff" stroke="#0a5346" stroke-opacity="0.3"/>
+    <rect x="410" y="174" width="46" height="26" rx="7" fill="#ffffff" stroke="#0a5346" stroke-opacity="0.3"/>
+    <circle cx="422" cy="123" r="3" fill="#0a5346" fill-opacity="0.4"/>
+    <circle cx="422" cy="155" r="3" fill="#0a5346" fill-opacity="0.4"/>
+    <circle cx="422" cy="187" r="3" fill="#0a5346" fill-opacity="0.4"/>
+  </g>
+</svg>

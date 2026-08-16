@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ToolPageHeader } from "@/components/layout/ToolPageHeader";
+import matchTypeArt from "@/public/illustrations/match-type.svg";
 import { MatchTypeApp } from "./MatchTypeApp";
 
 export const metadata: Metadata = {
@@ -10,21 +12,13 @@ export const metadata: Metadata = {
 export default function KeywordMatchTypePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="max-w-3xl">
-        <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
-          Keyword Match Type Tool
-        </h1>
-        <p className="mt-3 text-lg text-ink-muted">
-          Paste a list of keywords and convert it to Broad, Phrase, Exact, and
-          BMM (legacy) match types at once - clean, deduplicated, and ready to
-          paste into Google Ads Editor.
-        </p>
-
-        <details className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-ink-muted">
-          <summary className="cursor-pointer font-medium text-ink">
-            How match types work
-          </summary>
-          <div className="mt-3 flex flex-col gap-2">
+      <ToolPageHeader
+        illustration={matchTypeArt}
+        title="Keyword Match Type Tool"
+        description="Paste a list of keywords and convert it to Broad, Phrase, Exact, and BMM (legacy) match types at once - clean, deduplicated, and ready to paste into Google Ads Editor."
+        explainerSummary="How match types work"
+        explainerContent={
+          <>
             <p>
               Google and Microsoft Ads use wrapper syntax to control how closely
               a search has to match your keyword before your ad is eligible to
@@ -53,9 +47,9 @@ export default function KeywordMatchTypePage() {
               </span>
               .
             </p>
-          </div>
-        </details>
-      </div>
+          </>
+        }
+      />
 
       <div className="mt-8">
         <MatchTypeApp />

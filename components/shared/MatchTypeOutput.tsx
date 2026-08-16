@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SkeletonBlock } from "@/components/shared/SkeletonBlock";
@@ -77,7 +77,7 @@ export function MatchTypeOutput({
           {isStale && (
             <div
               role="status"
-              className="rounded-md border border-border-strong bg-surface px-4 py-2 text-sm text-ink-muted"
+              className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm text-ink-muted shadow-raised"
             >
               {canProcess
                 ? "Showing results from before your last change - updating automatically, or click Process now."
@@ -105,23 +105,31 @@ export function MatchTypeOutput({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {matchTypes.map((type) => {
+          <div className="animate-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {matchTypes.map((type, index) => {
               const rawLines = result.results[type];
               const isProcessed = rawLines !== undefined;
               const lines = rawLines ?? [];
               const definition = MATCH_TYPE_DEFINITIONS[type];
               return (
+                // Concentric corners: 24px outer minus 16px padding leaves the
+                // inner scroll panel at 8px (`rounded-md`).
                 <div
                   key={type}
                   data-testid={`output-block-${type}`}
+                  style={{ "--index": index } as CSSProperties}
                   className={cn(
-                    "flex flex-col gap-3 rounded-lg border border-border p-4",
+                    "flex flex-col gap-3 rounded-2xl border border-border p-4",
                     definition.softClass,
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+                    {/*
+                      Label and count stay in one text run: the count updates
+                      on every re-process, and `tabular-nums` keeps the heading
+                      from reflowing as the digit width changes.
+                    */}
+                    <h3 className="flex items-center gap-2 font-display text-sm font-semibold tabular-nums text-ink">
                       <span
                         aria-hidden="true"
                         className={cn(
@@ -158,8 +166,8 @@ export function MatchTypeOutput({
           </div>
 
           {result.flagged.length > 0 && (
-            <details className="rounded-lg border border-flag/40 bg-flag-soft p-4">
-              <summary className="cursor-pointer text-sm font-medium text-flag">
+            <details className="rounded-2xl border border-flag/40 bg-flag-soft p-4">
+              <summary className="cursor-pointer text-sm font-medium text-flag tabular-nums">
                 Needs review ({result.flagged.length}) - over 80 characters
               </summary>
               <ul className="mt-2 space-y-1 font-mono text-xs text-ink">

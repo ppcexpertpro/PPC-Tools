@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ToolPageHeader } from "@/components/layout/ToolPageHeader";
+import mergeMatchArt from "@/public/illustrations/merge-match.svg";
 import { MergeMatchApp } from "./MergeMatchApp";
 
 export const metadata: Metadata = {
@@ -10,20 +12,13 @@ export const metadata: Metadata = {
 export default function KeywordMergeMatchPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="max-w-3xl">
-        <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
-          Keyword Merge &amp; Match Tool
-        </h1>
-        <p className="mt-3 text-lg text-ink-muted">
-          Combine 2–5 keyword groups - modifiers, core terms, suffixes - into
-          every permutation, then apply match types to the merged list at once.
-        </p>
-
-        <details className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-ink-muted">
-          <summary className="cursor-pointer font-medium text-ink">
-            How merging works
-          </summary>
-          <div className="mt-3 flex flex-col gap-2">
+      <ToolPageHeader
+        illustration={mergeMatchArt}
+        title="Keyword Merge & Match Tool"
+        description="Combine 2–5 keyword groups - modifiers, core terms, suffixes - into every permutation, then apply match types to the merged list at once."
+        explainerSummary="How merging works"
+        explainerContent={
+          <>
             <p>
               Each group is a list of terms. The tool builds every combination
               across groups in the order they&apos;re arranged on screen - a
@@ -42,9 +37,9 @@ export default function KeywordMergeMatchPage() {
               combination count before merging - predicted output is capped at
               20,000 keywords per run.
             </p>
-          </div>
-        </details>
-      </div>
+          </>
+        }
+      />
 
       <div className="mt-8">
         <MergeMatchApp />

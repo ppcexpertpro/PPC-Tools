@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ComponentType, type SVGProps } from "react";
 import { useUIStore, type ToastVariant } from "@/store/uiStore";
+import {
+  CheckIcon,
+  CloseIcon,
+  ErrorIcon,
+  InfoIcon,
+  WarningIcon,
+} from "@/components/shared/icons";
 import { cn } from "@/lib/cn";
 
-const VARIANT_GLYPHS: Record<ToastVariant, string> = {
-  info: "i",
-  success: "✓",
-  warning: "!",
-  error: "×",
+const VARIANT_ICONS: Record<
+  ToastVariant,
+  ComponentType<SVGProps<SVGSVGElement>>
+> = {
+  info: InfoIcon,
+  success: CheckIcon,
+  warning: WarningIcon,
+  error: ErrorIcon,
 };
 
 const VARIANT_BADGE_CLASSES: Record<ToastVariant, string> = {
@@ -50,19 +60,23 @@ function ToastItem({
     return () => clearTimeout(timer);
   }, [id, dismissToast, action]);
 
+  const VariantIcon = VARIANT_ICONS[variant];
+
   return (
-    <div className="flex items-start gap-3 rounded-md border border-border bg-surface px-4 py-3 shadow-sm">
+    // `rounded-xl` (16) around `p-2` (8) badges keeps the corner radii
+    // concentric; the layered shadow does the separating work a border would
+    // otherwise do against an arbitrary page background.
+    <div className="toast-enter flex items-start gap-3 rounded-xl border border-border bg-surface p-2 pl-3 shadow-float">
       <span
-        aria-hidden="true"
         className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold",
+          "mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
           VARIANT_BADGE_CLASSES[variant],
         )}
       >
-        {VARIANT_GLYPHS[variant]}
+        <VariantIcon className="h-3 w-3" />
       </span>
       <span className="sr-only">{VARIANT_LABELS[variant]}:</span>
-      <p className="flex-1 text-sm text-ink">{message}</p>
+      <p className="flex-1 py-1.5 text-sm text-ink">{message}</p>
       {action && (
         <button
           type="button"
@@ -70,7 +84,7 @@ function ToastItem({
             action.onAction();
             dismissToast(id);
           }}
-          className="shrink-0 text-sm font-medium text-signal underline underline-offset-2 hover:text-ink"
+          className="shrink-0 rounded-md px-2 py-1.5 text-sm font-medium text-signal transition-[background-color,transform] duration-200 ease-out hover:bg-signal-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal active:scale-[0.96]"
         >
           {action.label}
         </button>
@@ -79,9 +93,11 @@ function ToastItem({
         type="button"
         onClick={() => dismissToast(id)}
         aria-label="Dismiss notification"
-        className="text-ink-faint hover:text-ink-muted"
+        // Visually 32px to sit level with the action button, but `hit-area`
+        // pushes the tappable region out to the 40px minimum.
+        className="hit-area flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-faint transition-[background-color,color,transform] duration-200 ease-out hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal active:scale-[0.96]"
       >
-        ×
+        <CloseIcon className="h-4 w-4" />
       </button>
     </div>
   );

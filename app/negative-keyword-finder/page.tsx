@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ToolPageHeader } from "@/components/layout/ToolPageHeader";
+import negativeFinderArt from "@/public/illustrations/negative-finder.svg";
 import { NegativeFinderApp } from "./NegativeFinderApp";
 
 export const metadata: Metadata = {
@@ -10,20 +12,13 @@ export const metadata: Metadata = {
 export default function NegativeKeywordFinderPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="max-w-3xl">
-        <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
-          Negative Keyword Finder
-        </h1>
-        <p className="mt-3 text-lg text-ink-muted">
-          Paste search terms or upload a report (.csv, .xls, .xlsx, .txt) and
-          mine it for negative keyword candidates by word frequency.
-        </p>
-
-        <details className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-ink-muted">
-          <summary className="cursor-pointer font-medium text-ink">
-            How this works
-          </summary>
-          <div className="mt-3 flex flex-col gap-2">
+      <ToolPageHeader
+        illustration={negativeFinderArt}
+        title="Negative Keyword Finder"
+        description="Paste search terms or upload a report (.csv, .xls, .xlsx, .txt) and mine it for negative keyword candidates by word frequency."
+        explainerSummary="How this works"
+        explainerContent={
+          <>
             <p>
               Every row of your search-terms report is broken into words
               (unigrams), word pairs (bigrams), and three-word phrases
@@ -41,9 +36,9 @@ export default function NegativeKeywordFinderPage() {
               Broad, Phrase, or Exact match, then copy or download the result to
               paste into a new negative keyword list.
             </p>
-          </div>
-        </details>
-      </div>
+          </>
+        }
+      />
 
       <div className="mt-8">
         <NegativeFinderApp />

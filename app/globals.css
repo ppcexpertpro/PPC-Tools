@@ -2,7 +2,7 @@
 
 @theme {
   --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono:
     var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -38,13 +38,69 @@
   --color-mt-bmm: #8a6600;
   --color-mt-bmm-soft: #faf3df;
 
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  /*
+   * Radius scale is concentric-aware: a container's radius should equal its
+   * inner element's radius plus the padding between them. The pairs this
+   * codebase uses are `rounded-2xl` + `p-4` + `rounded-md` (24 = 8 + 16) and
+   * `rounded-xl` + `p-2` + `rounded-md` (16 = 8 + 8).
+   */
+  --radius-md: 0.5rem; /* 8px  - controls, inner panels */
+  --radius-lg: 0.75rem; /* 12px - compact cards */
+  --radius-xl: 1rem; /* 16px - medium containers */
+  --radius-2xl: 1.5rem; /* 24px - outer cards wrapping p-4 content */
+
+  /*
+   * The built-in CSS easings are too weak to read as intentional. These are
+   * the stronger variants: `ease-out` for anything entering or responding to
+   * input, `ease-in-out` for movement across the screen, `ease-swap` for
+   * cross-fading two states of the same element.
+   */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-swap: cubic-bezier(0.2, 0, 0, 1);
+
+  /*
+   * Layered, ink-tinted shadows rather than a single flat drop or a hard
+   * border - light falls off gradually, so stacking low-opacity layers reads
+   * as depth where one 0.1-alpha blur reads as a smudge.
+   */
+  --shadow-raised:
+    0 1px 1px -0.5px rgb(20 24 31 / 0.05), 0 2px 4px -1px rgb(20 24 31 / 0.05);
+  --shadow-lifted:
+    0 1px 1px -0.5px rgb(20 24 31 / 0.04), 0 4px 8px -3px rgb(20 24 31 / 0.06),
+    0 10px 20px -8px rgb(20 24 31 / 0.07);
+  --shadow-float:
+    0 1px 1px -0.5px rgb(20 24 31 / 0.05), 0 6px 12px -3px rgb(20 24 31 / 0.08),
+    0 16px 32px -12px rgb(20 24 31 / 0.12);
 }
 
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  /* Headings get balanced line lengths; body copy avoids single-word orphans. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p,
+  li {
+    text-wrap: pretty;
+  }
+
+  /*
+   * Every number in this product is a count that updates while the user
+   * types. Proportional digits make those counts jitter on each keystroke.
+   */
+  output,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @keyframes fade-up {
@@ -67,28 +123,101 @@ body {
   }
 }
 
-@keyframes copy-success {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
 .animate-fade-up {
-  animation: fade-up 0.5s ease-out both;
+  animation: fade-up 0.42s var(--ease-out) both;
 }
 
 .animate-fade-in {
-  animation: fade-in 0.2s ease-out both;
+  animation: fade-in 0.2s var(--ease-out) both;
 }
 
-.animate-copy-success {
-  animation: copy-success 0.3s ease-out;
+/*
+ * Staggered entrance for a group of siblings. The parent sets the class, each
+ * child sets `--index`. Keep the step short - long cascades read as the page
+ * being slow rather than as choreography.
+ */
+.animate-stagger > * {
+  animation: fade-up 0.42s var(--ease-out) both;
+  animation-delay: calc(var(--index, 0) * 60ms);
+}
+
+/*
+ * Cross-fade between two icons occupying the same cell. Both stay mounted so
+ * the outgoing icon animates out instead of being yanked from the DOM, which
+ * is what makes a state change read as a transformation rather than a swap.
+ */
+.icon-swap {
+  display: inline-grid;
+  place-items: center;
+}
+
+.icon-swap > * {
+  grid-area: 1 / 1;
+  transition:
+    opacity 300ms var(--ease-swap),
+    transform 300ms var(--ease-swap),
+    filter 300ms var(--ease-swap);
+}
+
+.icon-swap > [data-visible="false"] {
+  opacity: 0;
+  transform: scale(0.25);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.icon-swap > [data-visible="true"] {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+/*
+ * Toasts enter from the same edge they sit on, so the motion matches where
+ * they came from. A transition (not a keyframe) so rapid-fire toasts retarget
+ * mid-flight instead of restarting from zero.
+ */
+.toast-enter {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 260ms var(--ease-out),
+    transform 260ms var(--ease-out);
+}
+
+@starting-style {
+  .toast-enter {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+/*
+ * A hairline on every raster/vector asset so images sit on the page with the
+ * same edge definition as bordered surfaces. Pure black at low alpha - a
+ * tinted neutral would pick up the surface behind it and read as dirt.
+ */
+.img-edge {
+  outline: 1px solid rgb(0 0 0 / 0.1);
+  outline-offset: -1px;
+}
+
+/*
+ * Expands a small control's hit area to the 40x40 minimum without changing
+ * its visual size. Requires a positioned ancestor chain that does not clip.
+ */
+.hit-area {
+  position: relative;
+}
+
+.hit-area::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -99,5 +228,21 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /*
+   * Reduced motion means less movement, not no feedback. Opacity-only
+   * transitions still carry meaning (this element changed state) without the
+   * vestibular cost, so they keep a perceptible duration.
+   */
+  .animate-fade-in,
+  .icon-swap > * {
+    animation-duration: 150ms !important;
+    transition-duration: 150ms !important;
+  }
+
+  .icon-swap > [data-visible="false"] {
+    transform: none;
+    filter: none;
   }
 }

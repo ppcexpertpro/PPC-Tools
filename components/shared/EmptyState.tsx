@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BracketsIcon } from "@/components/shared/icons";
 import { cn } from "@/lib/cn";
 
 export interface EmptyStateProps {
@@ -8,9 +9,10 @@ export interface EmptyStateProps {
   className?: string;
 }
 
+/** Empty brackets - the suite's own mark, standing in for the slot with nothing in it yet. */
 const DEFAULT_ICON = (
-  <span aria-hidden="true" className="font-mono text-3xl text-ink-faint">
-    [&nbsp;]
+  <span className="mb-1 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-ink-faint shadow-raised">
+    <BracketsIcon className="h-5 w-5" />
   </span>
 );
 
@@ -23,7 +25,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border-strong px-6 py-12 text-center",
         className,
       )}
     >

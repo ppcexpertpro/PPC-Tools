@@ -32,12 +32,12 @@ export function Footer() {
             - search engine strategy for local service businesses.
           </p>
         </div>
-        <nav aria-label="Tools" className="flex flex-col gap-2 text-sm">
+        <nav aria-label="Tools" className="flex flex-col items-start text-sm">
           {TOOLS.map((tool) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="text-ink-muted hover:text-signal"
+              className="-mx-2 flex min-h-10 items-center rounded-md px-2 text-ink-muted transition-colors duration-200 ease-out hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
             >
               {tool.label}
             </Link>

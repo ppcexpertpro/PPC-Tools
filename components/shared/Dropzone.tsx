@@ -78,9 +78,12 @@ export function Dropzone({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+        "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center",
+        "transition-[border-color,background-color,scale] duration-200 ease-out",
         pageDragActive
-          ? "border-signal bg-signal-soft"
+          ? // Grows a hair as the file crosses the window - confirms the drop
+            // will land here before the user lets go.
+            "scale-[1.01] border-signal bg-signal-soft"
           : "border-border-strong bg-surface",
         status === "error" && "border-danger bg-danger-soft",
       )}
@@ -90,7 +93,7 @@ export function Dropzone({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="font-semibold text-signal underline underline-offset-2"
+          className="rounded-sm font-semibold text-signal underline underline-offset-2 transition-colors duration-200 ease-out hover:text-signal-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2"
         >
           browse
         </button>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useUIStore } from "@/store/uiStore";
 import { Button, type ButtonProps } from "@/components/shared/Button";
-import { cn } from "@/lib/cn";
+import { CheckIcon, CopyIcon } from "@/components/shared/icons";
 
 type CopyState = "idle" | "copied" | "manual";
 
@@ -60,17 +60,32 @@ export function CopyButton({
       <Button
         variant={variant}
         onClick={handleClick}
-        className={cn(state === "copied" && "animate-copy-success", className)}
+        className={className}
         disabled={text.length === 0}
       >
-        <span key={state} className="animate-fade-in inline-flex items-center gap-1.5">
-          {state === "copied" ? (
-            <>
-              <span aria-hidden="true">✓</span> Copied!
-            </>
-          ) : (
-            label
-          )}
+        {/*
+          Both labels stay mounted in the same grid cell and cross-fade, so the
+          outgoing one animates out instead of being ripped from the DOM. The
+          wrapper is sized by the wider of the two, which also stops the button
+          from resizing as the state flips.
+        */}
+        <span className="icon-swap">
+          <span
+            data-visible={state === "copied"}
+            aria-hidden={state !== "copied"}
+            className="inline-flex items-center gap-1.5"
+          >
+            <CheckIcon className="h-4 w-4" />
+            Copied!
+          </span>
+          <span
+            data-visible={state !== "copied"}
+            aria-hidden={state === "copied"}
+            className="inline-flex items-center gap-1.5"
+          >
+            <CopyIcon className="h-4 w-4" />
+            {label}
+          </span>
         </span>
       </Button>
       {state === "manual" && (

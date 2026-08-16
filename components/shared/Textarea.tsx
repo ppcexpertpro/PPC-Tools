@@ -57,9 +57,13 @@ export function Textarea({
           error && errorMessage && errorId,
         )}
         className={cn(
-          "w-full rounded-md border bg-surface px-3 py-2 font-mono text-sm text-ink",
+          "w-full rounded-md border bg-surface px-3 py-2 font-mono text-sm leading-relaxed text-ink",
+          "transition-[border-color,box-shadow] duration-200 ease-out",
+          "placeholder:text-ink-faint",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
-          error ? "border-danger" : "border-border-strong",
+          error
+            ? "border-danger"
+            : "border-border-strong hover:border-ink-faint",
           className,
         )}
         {...props}

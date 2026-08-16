@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { NotFoundActions } from "./NotFoundActions";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function NotFound() {
         404
       </span>
 
-      <div className="relative z-10 flex max-w-md flex-col items-center gap-8">
+      <div className="animate-stagger relative z-10 flex max-w-md flex-col items-center gap-8">
         <div className="space-y-2">
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
             Page not found
@@ -26,7 +27,9 @@ export default function NotFound() {
           </p>
         </div>
 
-        <NotFoundActions />
+        <div style={{ "--index": 1 } as CSSProperties}>
+          <NotFoundActions />
+        </div>
       </div>
     </main>
   );

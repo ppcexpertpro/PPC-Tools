@@ -15,7 +15,9 @@ export function SkeletonBlock({ lines = 4, className }: SkeletonBlockProps) {
       role="status"
       aria-label="Loading"
       className={cn(
-        "animate-pulse rounded-lg border border-border bg-surface p-4",
+        // Matches the radius and padding of the real output card it stands in
+        // for, so nothing shifts when the results swap in.
+        "animate-pulse rounded-2xl border border-border bg-surface p-4",
         className,
       )}
     >

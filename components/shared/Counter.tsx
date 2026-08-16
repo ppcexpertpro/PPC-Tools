@@ -26,9 +26,16 @@ export function Counter({
   className,
 }: CounterProps) {
   return (
+    // `tabular-nums` on top of the mono face: JetBrains Mono is already
+    // fixed-width, but the counter falls back to the system mono stack while
+    // the webfont loads and those are not all tabular.
     <p
       role={state === "error" ? "alert" : undefined}
-      className={cn("font-mono text-sm", STATE_CLASSES[state], className)}
+      className={cn(
+        "font-mono text-sm tabular-nums",
+        STATE_CLASSES[state],
+        className,
+      )}
     >
       {children}
     </p>

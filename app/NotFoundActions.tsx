@@ -11,7 +11,7 @@ export function NotFoundActions() {
     <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
       <Link
         href="/"
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-signal-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 py-2 text-sm font-medium text-white shadow-raised transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-signal-strong hover:shadow-lifted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:scale-[0.96]"
       >
         Back to tools
       </Link>

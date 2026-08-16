@@ -23,7 +23,9 @@ export function ToolSwitcher() {
             href={tool.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex min-h-10 items-center rounded-md px-3 text-sm font-medium",
+              "transition-[background-color,color,transform] duration-200 ease-out active:scale-[0.96]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
               isActive
                 ? "bg-signal-soft text-signal-strong"
                 : "text-ink-muted hover:bg-paper hover:text-ink",

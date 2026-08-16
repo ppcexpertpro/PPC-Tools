@@ -108,8 +108,11 @@ export function MatchTypeSelector(props: MatchTypeSelectorProps) {
               key={type}
               htmlFor={inputId}
               className={cn(
-                "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm",
-                checked && "ring-1 ring-signal",
+                "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-surface px-3 py-2 text-sm",
+                "transition-[border-color,box-shadow,background-color] duration-200 ease-out",
+                checked
+                  ? "border-signal ring-1 ring-signal"
+                  : "border-border hover:border-border-strong hover:bg-paper",
               )}
             >
               <input
