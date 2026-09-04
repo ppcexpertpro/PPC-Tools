@@ -1,51 +1,54 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { parseBasicAuthHeader, isAuthorized } from "@/lib/outreach/auth/basicAuth";
+import { SESSION_COOKIE_NAME, validateSession } from "@/lib/outreach/auth/session";
 
 // `middleware.ts` was renamed to `proxy.ts` in Next.js 16
 // (node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md).
 
-const REALM = "Outreach Sequencer";
-
-function unauthorizedResponse(): NextResponse {
-  return new NextResponse("Authentication required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": `Basic realm="${REALM}", charset="UTF-8"` },
-  });
-}
+// Exact matches: /outreach/setup and /outreach/login are single pages with
+// no sub-routes, so an exact match is both sufficient and safer than a
+// prefix - `startsWith("/outreach/setup")` would also match a future route
+// like `/outreach/setupxyz`, an unanchored-prefix bypass a security review
+// caught. /outreach/unsubscribe/[token] genuinely has a dynamic sub-segment,
+// so it alone needs a real (trailing-slash-anchored) prefix match.
+const PUBLIC_EXACT_PATHS = new Set([
+  "/outreach/setup",
+  "/outreach/login",
+  "/api/outreach/setup",
+  "/api/outreach/login",
+]);
+const PUBLIC_PATH_PREFIXES = ["/outreach/unsubscribe/"];
 
 /**
- * Gates every /outreach and /api/outreach route behind a single shared
- * username/password (Phase 1 is a self-hosted, single-operator tool - not a
- * multi-tenant app, so this is a deliberately simpler bar than a full
- * accounts system). The unsubscribe link is the one exception: recipients,
- * not the operator, click it, and it is protected by its own signed token
- * instead.
+ * Gates every /outreach and /api/outreach route behind a real per-user
+ * session. Both the setup/login *pages* and their *API routes* must stay
+ * reachable while logged out - the API routes are how bootstrap and login
+ * actually happen, so gating them here would be a hard lockout. Each still
+ * guards itself server-side (setup 409s once a user exists; login just
+ * rejects bad credentials), so leaving them public here is safe.
+ * /outreach/unsubscribe is clicked by recipients, not the operator, and is
+ * protected by its own signed token instead.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/outreach/unsubscribe/")) {
+  if (PUBLIC_EXACT_PATHS.has(pathname) || PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
   }
 
-  const expectedUser = process.env.OUTREACH_ACCESS_USER;
-  const expectedPass = process.env.OUTREACH_ACCESS_PASSWORD;
-  if (!expectedUser || !expectedPass) {
-    // Fail closed: an unconfigured gate refuses access rather than letting
-    // every request through.
-    return NextResponse.json(
-      { error: "Outreach access is not configured. Set OUTREACH_ACCESS_USER and OUTREACH_ACCESS_PASSWORD." },
-      { status: 503 },
-    );
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const user = token ? await validateSession(token) : null;
+
+  if (!user) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+    const loginUrl = new URL("/outreach/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  const credentials = parseBasicAuthHeader(request.headers.get("authorization"));
-  if (isAuthorized(credentials, expectedUser, expectedPass)) {
-    return NextResponse.next();
-  }
-
-  return unauthorizedResponse();
+  return NextResponse.next();
 }
 
 export const config = {

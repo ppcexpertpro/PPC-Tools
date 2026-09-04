@@ -7,6 +7,8 @@ import {
   messages,
   suppressions,
   events,
+  users,
+  sessions,
 } from "@/db/schema";
 
 function columnNames(table: PgTable) {
@@ -67,5 +69,14 @@ describe("outreach db schema", () => {
     );
     expect(columnNames(suppressions)).toEqual(expect.arrayContaining(["id", "email", "reason"]));
     expect(columnNames(events)).toEqual(expect.arrayContaining(["id", "type", "payload"]));
+  });
+
+  it("defines the expected user and session columns", () => {
+    expect(columnNames(users)).toEqual(
+      expect.arrayContaining(["id", "email", "password_hash", "role", "created_at"]),
+    );
+    expect(columnNames(sessions)).toEqual(
+      expect.arrayContaining(["id", "user_id", "token_hash", "expires_at", "created_at"]),
+    );
   });
 });
