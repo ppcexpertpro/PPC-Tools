@@ -5,25 +5,36 @@ import { LegalPage, LegalSection } from "@/components/layout/LegalPage";
 export const metadata: Metadata = {
   title: "Privacy Policy | PPC Keyword Utilities Suite",
   description:
-    "How the PPC Keyword Utilities Suite handles your data: keyword lists and uploaded reports are processed entirely in your browser and are never transmitted.",
+    "How the PPC Keyword Utilities Suite handles your data: keyword lists and uploaded reports are processed entirely in your browser and are never transmitted. The outreach tool works differently - see how.",
 };
 
 export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy policy"
-      updatedOn="16 August 2026"
+      updatedOn="4 September 2026"
       summary={
         <>
           <p>
-            Keyword lists and search-terms reports you paste or upload are
-            processed entirely inside your browser tab. They are never
-            transmitted to us or to anyone else, because these tools have no
-            server-side component to transmit them to.
+            Keyword lists and search-terms reports you paste or upload into
+            the three keyword tools - Match Type, Merge & Match, Negative
+            Keyword Finder - are processed entirely inside your browser tab
+            and never transmitted anywhere.
+          </p>
+          <p>
+            The outreach tool works differently: it has a server, because
+            sending email requires one. See{" "}
+            <a
+              href="#outreach-tool"
+              className="font-medium text-signal underline underline-offset-2 transition-colors duration-200 ease-out hover:text-signal-strong"
+            >
+              how the outreach tool handles data
+            </a>{" "}
+            below.
           </p>
           <p>
             There are no accounts, no cookies, and nothing written to browser
-            storage.
+            storage, in either case.
           </p>
         </>
       }
@@ -43,10 +54,40 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
+      <LegalSection heading="The outreach tool works differently">
+        <p id="outreach-tool">
+          The outreach tool connects to a mailbox you control and sends
+          messages to contacts you upload. Unlike the three keyword tools,
+          this requires a server: your mailbox credentials, the contacts you
+          import, and the content and delivery status of each message are
+          stored in this application&apos;s own database, not processed
+          transiently in your browser.
+        </p>
+        <p>
+          Mailbox credentials are encrypted at rest and are never included in
+          any API response the browser receives. Contact data and message
+          history are kept only as long as you keep them in the tool, are
+          never sold or shared with anyone else, and are used solely to run
+          the campaigns you create.
+        </p>
+        <p>
+          Running a cold-outreach campaign is your responsibility, not the
+          tool&apos;s: you must have a lawful basis to email the contacts you
+          upload. The tool enforces baseline compliance - a working
+          unsubscribe link and a visible postal address on every message -
+          but it cannot verify where your contact list came from or whether
+          you have the right to email it.
+        </p>
+      </LegalSection>
+
       <LegalSection heading="What is not collected">
         <p>
-          No accounts, sign-ups, or email addresses. No cookies. Nothing written
-          to <span className="font-mono text-ink">localStorage</span> or{" "}
+          For the three keyword tools: no accounts, sign-ups, or email
+          addresses. The outreach tool is the one exception, by necessity -
+          running it means giving it the contact email addresses you intend
+          to send to, and the mailbox credentials to send from. No cookies
+          anywhere on this site. Nothing written to{" "}
+          <span className="font-mono text-ink">localStorage</span> or{" "}
           <span className="font-mono text-ink">sessionStorage</span>. No
           advertising or cross-site tracking pixels, and no third-party scripts
           that would set any of the above on our behalf.

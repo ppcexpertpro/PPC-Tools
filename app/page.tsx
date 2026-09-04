@@ -7,6 +7,7 @@ import heroWorkflow from "@/public/illustrations/hero-workflow.svg";
 import matchTypeArt from "@/public/illustrations/match-type.svg";
 import mergeMatchArt from "@/public/illustrations/merge-match.svg";
 import negativeFinderArt from "@/public/illustrations/negative-finder.svg";
+import outreachArt from "@/public/illustrations/outreach.svg";
 import privacyArt from "@/public/illustrations/privacy-local.svg";
 
 export const metadata: Metadata = {
@@ -56,6 +57,16 @@ const TOOLS: ToolCard[] = [
       "Mine a search-terms report for the words draining spend, ranked by how often they appear.",
     image: negativeFinderArt,
     span: "lg:col-span-2",
+  },
+  {
+    href: "/outreach",
+    eyebrow: "Following up automatically",
+    glyph: "→",
+    title: "Outreach Sequencer",
+    description:
+      "Connect a mailbox and send a paced, human-cadence follow-up sequence from a CSV list. Runs through this app's own server - see the privacy policy for how contact data is handled differently from the other tools.",
+    image: outreachArt,
+    span: "lg:col-span-3",
   },
 ];
 
@@ -199,7 +210,7 @@ export default function HomePage() {
 
           <div
             style={{ "--index": TOOLS.length } as CSSProperties}
-            className="relative flex flex-col overflow-hidden rounded-2xl border border-signal/25 bg-signal-soft lg:col-span-3"
+            className="relative flex flex-col overflow-hidden rounded-2xl border border-signal/25 bg-signal-soft lg:col-span-5"
           >
             <div className="flex flex-col gap-2.5 p-6">
               <span className="flex items-center gap-2.5 font-mono text-xs text-signal-strong">
@@ -222,7 +233,7 @@ export default function HomePage() {
                 alt=""
                 fill
                 className="object-contain"
-                sizes="(min-width: 1024px) 58vw, 100vw"
+                sizes="100vw"
               />
             </div>
           </div>

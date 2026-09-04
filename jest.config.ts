@@ -14,6 +14,7 @@ const config: Config = {
     "<rootDir>/node_modules/",
     "<rootDir>/.next/",
     "<rootDir>/tests/e2e/",
+    "<rootDir>/tests/integration/",
   ],
   // Default 5s is too tight under full-suite CPU contention (many parallel
   // jsdom environments); async tests otherwise pass instantly in isolation.

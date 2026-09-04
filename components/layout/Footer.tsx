@@ -4,6 +4,7 @@ const TOOLS = [
   { href: "/keyword-match-type", label: "Keyword Match Type" },
   { href: "/keyword-merge-match", label: "Keyword Merge & Match" },
   { href: "/negative-keyword-finder", label: "Negative Keyword Finder" },
+  { href: "/outreach", label: "Outreach Sequencer" },
 ];
 
 const LEGAL = [
@@ -29,9 +30,10 @@ export function Footer() {
               PPC Keyword Utilities Suite
             </p>
             <p className="mt-2 text-sm text-ink-muted">
-              Free, browser-based keyword tools for PPC specialists. Every list
-              you paste or upload is processed entirely on your device - nothing
-              is ever sent to a server.
+              Free, browser-based keyword tools for PPC specialists, plus a
+              self-hosted outreach sequencer. The keyword tools process
+              everything on your device; outreach campaigns run through this
+              app&apos;s own server, which you control.
             </p>
           </div>
 

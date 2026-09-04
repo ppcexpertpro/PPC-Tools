@@ -1,0 +1,20 @@
+<!-- viewBox cropped to the drawing's bounds plus a margin, matching the other tool illustrations. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="464" height="228" viewBox="8 36 464 228" fill="none" role="img">
+  <rect width="480" height="300" fill="#ffffff"/>
+
+  <path d="M96 150 H392" stroke="#0e6e5c" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.4"/>
+
+  <rect x="56" y="118" width="80" height="56" rx="8" fill="#e4f3ef" stroke="#0e6e5c" stroke-width="1.5"/>
+  <path d="M56 126 L96 154 L136 126" stroke="#0e6e5c" stroke-width="1.5" opacity="0.7"/>
+
+  <rect x="196" y="110" width="88" height="62" rx="8" fill="#ffffff" stroke="#0e6e5c" stroke-width="1.5"/>
+  <path d="M196 119 L240 150 L284 119" stroke="#0e6e5c" stroke-width="1.5"/>
+
+  <rect x="336" y="118" width="80" height="56" rx="8" fill="#ffffff" stroke="#b9c0cb" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M336 126 L376 154 L416 126" stroke="#b9c0cb" stroke-width="1.5"/>
+
+  <circle cx="240" cy="78" r="16" fill="#ffffff" stroke="#0e6e5c" stroke-width="1.5"/>
+  <path d="M240 70 V78 L246 82" stroke="#0e6e5c" stroke-width="1.5" stroke-linecap="round"/>
+
+  <text x="56" y="200" font-family="ui-monospace, monospace" font-size="11" fill="#0e6e5c" letter-spacing="0.5" opacity="0.7">ONE PER MINUTE, JITTERED</text>
+</svg>

@@ -12,15 +12,26 @@
     "test:watch": "jest --watch",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:cross-browser": "playwright test",
-    "verify": "npm run lint && npm run typecheck && npm run test"
+    "verify": "npm run lint && npm run typecheck && npm run test",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx db/migrate.ts",
+    "worker": "tsx worker/tick.ts",
+    "test:integration": "jest --config jest.integration.config.ts"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "next": "^16.3.0",
+    "nodemailer": "^9.1.1",
     "papaparse": "^5.5.4",
+    "postgres": "^3.4.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-window": "^2.3.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz",
+    "zod": "^4.5.4",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -33,9 +44,11 @@
     "@testing-library/user-event": "^14.6.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.2.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.0",
     "eslint-config-prettier": "^10.1.8",
@@ -44,6 +57,7 @@
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3"
   }
 }

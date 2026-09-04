@@ -8,6 +8,7 @@ const TOOLS = [
   { href: "/keyword-match-type", label: "Match Type" },
   { href: "/keyword-merge-match", label: "Merge & Match" },
   { href: "/negative-keyword-finder", label: "Neg. Finder" },
+  { href: "/outreach", label: "Outreach" },
 ];
 
 export function ToolSwitcher() {

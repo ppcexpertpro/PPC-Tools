@@ -18,8 +18,8 @@ describe("ToolSwitcher", () => {
     ).not.toHaveAttribute("aria-current");
   });
 
-  it("links to all three tool routes", () => {
+  it("links to all four tool routes", () => {
     render(<ToolSwitcher />);
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 });

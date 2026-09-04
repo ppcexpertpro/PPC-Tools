@@ -24,7 +24,7 @@ describe("Header", () => {
 });
 
 describe("Footer", () => {
-  it("links to all three tools and states the privacy promise", () => {
+  it("links to all four tools and scopes the privacy promise to the keyword tools", () => {
     render(<Footer />);
     expect(
       screen.getByRole("link", { name: "Keyword Match Type" }),
@@ -36,7 +36,10 @@ describe("Footer", () => {
       screen.getByRole("link", { name: "Negative Keyword Finder" }),
     ).toHaveAttribute("href", "/negative-keyword-finder");
     expect(
-      screen.getByText(/nothing is ever sent to a server/i),
+      screen.getByRole("link", { name: "Outreach Sequencer" }),
+    ).toHaveAttribute("href", "/outreach");
+    expect(
+      screen.getByText(/keyword tools process everything on your device/i),
     ).toBeInTheDocument();
   });
 

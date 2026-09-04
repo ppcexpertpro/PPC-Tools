@@ -5,14 +5,14 @@ import { LegalPage, LegalSection } from "@/components/layout/LegalPage";
 export const metadata: Metadata = {
   title: "Terms of Use | PPC Keyword Utilities Suite",
   description:
-    "Terms of use for the PPC Keyword Utilities Suite: free browser-based keyword tools provided as-is, with no affiliation to Google or Microsoft.",
+    "Terms of use for the PPC Keyword Utilities Suite: free browser-based keyword tools provided as-is, plus a self-hosted outreach sequencer, with no affiliation to Google or Microsoft.",
 };
 
 export default function TermsPage() {
   return (
     <LegalPage
       title="Terms of use"
-      updatedOn="16 August 2026"
+      updatedOn="4 September 2026"
       summary={
         <>
           <p>
@@ -79,11 +79,36 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
+      <LegalSection heading="Using the outreach tool">
+        <p>
+          You are the sender of record for every message the outreach tool
+          sends on your behalf. You are solely responsible for having a
+          lawful basis to email the contacts you upload, for the accuracy of
+          your sender identity, and for complying with CAN-SPAM and any other
+          law that applies to you.
+        </p>
+        <p>
+          The tool provides no warranty on inbox placement. Whether a message
+          lands in a recipient&apos;s primary inbox depends on your sending
+          domain&apos;s reputation, your content, and factors entirely outside
+          this tool&apos;s control - the preflight checks and pacing rules
+          reduce risk, they do not guarantee an outcome.
+        </p>
+        <p>
+          Do not use the outreach tool to send unlawful, deceptive, or
+          harassing messages, or to email anyone who has unsubscribed or been
+          added to the suppression list.
+        </p>
+      </LegalSection>
+
       <LegalSection heading="Availability">
         <p>
-          These are static pages with no server-side processing, so they are
-          about as available as web hosting gets - but no uptime is guaranteed,
-          and tools may be changed or withdrawn without notice.
+          The three keyword tools are static pages with no server-side
+          processing, so they are about as available as web hosting gets. The
+          outreach tool runs its own server and a background sending process
+          on infrastructure you control; its uptime depends on that
+          infrastructure, not on this suite. No uptime is guaranteed for
+          either, and tools may be changed or withdrawn without notice.
         </p>
       </LegalSection>
 
