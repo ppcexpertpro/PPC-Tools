@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { campaigns, mailboxes, contacts, enrollments } from "@/db/schema";
+import { and, asc, eq } from "drizzle-orm";
+import { db, runAtomic } from "@/db/client";
+import { campaigns, mailboxes, contacts, enrollments, sequenceSteps } from "@/db/schema";
 import { runPreflight } from "@/lib/outreach/preflight";
 import { scheduleCampaignStart } from "@/lib/outreach/campaigns/start";
 
@@ -16,6 +16,16 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
 
   const [mailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, campaign.mailboxId));
   if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
+
+  const steps = await db
+    .select({ subjectTemplate: sequenceSteps.subjectTemplate, bodyTemplate: sequenceSteps.bodyTemplate })
+    .from(sequenceSteps)
+    .where(eq(sequenceSteps.campaignId, id))
+    .orderBy(asc(sequenceSteps.stepOrder));
+
+  if (steps.length === 0) {
+    return NextResponse.json({ error: "Campaign has no sequence steps" }, { status: 422 });
+  }
 
   const pending = await db
     .select({
@@ -38,7 +48,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
     senderDomain,
     dkimSelector: "default",
     postalAddress: campaign.postalAddress,
-    templates: [campaign.subjectTemplate, campaign.bodyTemplate],
+    templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
     contacts: pending.map((p) => ({ id: p.contactId, email: p.email, fields: p.fields })),
   });
 
@@ -60,7 +70,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
     enrollments: pending.map((p) => ({ id: p.enrollmentId, email: p.email, timezone: p.timezone })),
   });
 
-  await db.transaction(async (tx) => {
+  await runAtomic(async (tx) => {
     for (const item of scheduled) {
       await tx.update(enrollments).set({ status: "active", nextSendAt: item.nextSendAt }).where(eq(enrollments.id, item.id));
     }

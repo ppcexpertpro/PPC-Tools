@@ -1,4 +1,4 @@
-import { assertPublicSmtpHost } from "@/lib/outreach/mailboxes/hostGuard";
+import { assertPublicSmtpHost, assertPublicImapHost } from "@/lib/outreach/mailboxes/hostGuard";
 
 const fakeLookup = (map: Record<string, { address: string; family: 4 | 6 }[]>) => {
   return async (host: string) => map[host] ?? [];
@@ -54,5 +54,23 @@ describe("assertPublicSmtpHost", () => {
 
   it("rejects a literal private IP passed directly as the host", async () => {
     await expect(assertPublicSmtpHost("127.0.0.1", 587, fakeLookup({}))).rejects.toThrow();
+  });
+});
+
+describe("assertPublicImapHost", () => {
+  it("allows the standard IMAP ports (143, 993)", async () => {
+    const lookup = fakeLookup({ "imap.example.com": [{ address: "203.0.113.10", family: 4 }] });
+    await expect(assertPublicImapHost("imap.example.com", 993, lookup)).resolves.toBeUndefined();
+    await expect(assertPublicImapHost("imap.example.com", 143, lookup)).resolves.toBeUndefined();
+  });
+
+  it("rejects a port outside the IMAP allowlist, including SMTP's own ports", async () => {
+    const lookup = fakeLookup({ "imap.example.com": [{ address: "203.0.113.10", family: 4 }] });
+    await expect(assertPublicImapHost("imap.example.com", 587, lookup)).rejects.toThrow(/port/i);
+  });
+
+  it("rejects a private address the same way SMTP does", async () => {
+    const lookup = fakeLookup({ localhost: [{ address: "127.0.0.1", family: 4 }] });
+    await expect(assertPublicImapHost("localhost", 993, lookup)).rejects.toThrow(/private or reserved/i);
   });
 });

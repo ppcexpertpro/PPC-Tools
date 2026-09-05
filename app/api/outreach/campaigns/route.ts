@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { desc } from "drizzle-orm";
-import { db } from "@/db/client";
-import { campaigns } from "@/db/schema";
+import { db, runAtomic } from "@/db/client";
+import { campaigns, sequenceSteps } from "@/db/schema";
 import { createCampaignSchema } from "@/lib/outreach/campaigns/validation";
 
 export async function POST(request: Request) {
@@ -11,8 +11,22 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: z.flattenError(parsed.error) }, { status: 400 });
   }
+  const { steps, ...campaignFields } = parsed.data;
 
-  const [campaign] = await db.insert(campaigns).values(parsed.data).returning();
+  const campaign = await runAtomic(async (tx) => {
+    const [inserted] = await tx.insert(campaigns).values(campaignFields).returning();
+    await tx.insert(sequenceSteps).values(
+      steps.map((step, index) => ({
+        campaignId: inserted.id,
+        stepOrder: index + 1,
+        subjectTemplate: step.subjectTemplate,
+        bodyTemplate: step.bodyTemplate,
+        delayDays: step.delayDays,
+      })),
+    );
+    return inserted;
+  });
+
   return NextResponse.json({ campaign }, { status: 201 });
 }
 

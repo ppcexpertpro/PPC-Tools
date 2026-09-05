@@ -1,17 +1,22 @@
 import { config } from "dotenv";
 import { and, asc, eq, isNotNull, lte } from "drizzle-orm";
-import { db } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, messages, events } from "@/db/schema";
+import { db, runAtomic } from "@/db/client";
+import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
-import { createSmtpTransport, type SmtpCredentials } from "@/lib/outreach/transport/smtp";
+import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
+import { createSmtpTransport } from "@/lib/outreach/transport/smtp";
 import type { Transport } from "@/lib/outreach/transport/types";
+import type { SmtpCredentials } from "@/lib/outreach/transport/smtp";
 import { renderTemplate } from "@/lib/outreach/templates/render";
+import { buildThreadHeaders } from "@/lib/outreach/templates/threading";
 import { signUnsubscribeToken, loadUnsubscribeSecret } from "@/lib/outreach/unsubscribe/token";
+import { computeNextSendAt } from "@/lib/outreach/scheduler";
 
 config({ quiet: true });
 
 const TICK_INTERVAL_MS = 15_000;
 const CLAIM_BATCH_SIZE = 25;
+const SECONDS_PER_DAY = 24 * 60 * 60;
 
 export interface TickResult {
   attempted: number;
@@ -47,19 +52,35 @@ export async function runTick(
   const due = await db
     .select({
       enrollmentId: enrollments.id,
+      campaignId: enrollments.campaignId,
+      currentStep: enrollments.currentStep,
       mailboxId: mailboxes.id,
-      subjectTemplate: campaigns.subjectTemplate,
-      bodyTemplate: campaigns.bodyTemplate,
       mailboxCredentials: mailboxes.encryptedCredentials,
       mailboxFromName: mailboxes.fromName,
       mailboxFromEmail: mailboxes.fromEmail,
+      contactId: enrollments.contactId,
       contactEmail: contacts.email,
       contactFields: contacts.fields,
+      contactTimezone: contacts.timezone,
+      stepId: sequenceSteps.id,
+      subjectTemplate: sequenceSteps.subjectTemplate,
+      bodyTemplate: sequenceSteps.bodyTemplate,
+      baseIntervalSeconds: campaigns.baseIntervalSeconds,
+      businessHoursStart: campaigns.businessHoursStart,
+      businessHoursEnd: campaigns.businessHoursEnd,
+      businessDays: campaigns.businessDays,
+      domainThrottleLimit: campaigns.domainThrottleLimit,
+      mailboxDailyCap: mailboxes.dailyCap,
+      mailboxRampStartedAt: mailboxes.rampStartedAt,
     })
     .from(enrollments)
     .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
     .innerJoin(mailboxes, eq(mailboxes.id, campaigns.mailboxId))
     .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
+    .innerJoin(
+      sequenceSteps,
+      and(eq(sequenceSteps.campaignId, campaigns.id), eq(sequenceSteps.stepOrder, enrollments.currentStep)),
+    )
     .where(
       and(
         eq(enrollments.status, "active"),
@@ -83,8 +104,15 @@ export async function runTick(
     attempted += 1;
 
     try {
-      const credentials = JSON.parse(decrypt(row.mailboxCredentials, encryptionKey)) as SmtpCredentials;
-      const transport = createTransport(credentials);
+      const credentials = parseMailboxCredentials(decrypt(row.mailboxCredentials, encryptionKey));
+      const transport = createTransport(credentials.smtp);
+
+      const priorMessages = await db
+        .select({ rfcMessageId: messages.rfcMessageId })
+        .from(messages)
+        .where(eq(messages.enrollmentId, row.enrollmentId))
+        .orderBy(asc(messages.sentAt));
+      const threadHeaders = buildThreadHeaders(priorMessages.map((m) => m.rfcMessageId));
 
       const unsubscribeToken = signUnsubscribeToken(row.enrollmentId, unsubscribeSecret);
       const fields = { ...row.contactFields, unsubscribe_token: unsubscribeToken };
@@ -97,17 +125,53 @@ export async function runTick(
         fromEmail: row.mailboxFromEmail,
         subject,
         text,
+        inReplyTo: threadHeaders.inReplyTo,
+        references: threadHeaders.references,
       });
 
-      await db.transaction(async (tx) => {
-        await tx.insert(messages).values({ enrollmentId: row.enrollmentId, rfcMessageId: result.rfcMessageId, status: "sent" });
-        await tx
-          .update(enrollments)
-          .set({ status: "completed", sentAt: now, nextSendAt: null })
-          .where(eq(enrollments.id, row.enrollmentId));
+      const [nextStep] = await db
+        .select({ delayDays: sequenceSteps.delayDays })
+        .from(sequenceSteps)
+        .where(and(eq(sequenceSteps.campaignId, row.campaignId), eq(sequenceSteps.stepOrder, row.currentStep + 1)));
+
+      await runAtomic(async (tx) => {
+        await tx.insert(messages).values({
+          enrollmentId: row.enrollmentId,
+          stepId: row.stepId,
+          rfcMessageId: result.rfcMessageId,
+          status: "sent",
+        });
+
+        if (nextStep) {
+          const decision = computeNextSendAt({
+            now,
+            timezone: row.contactTimezone,
+            baseIntervalSeconds: nextStep.delayDays * SECONDS_PER_DAY,
+            businessHours: {
+              startHour: row.businessHoursStart,
+              endHour: row.businessHoursEnd,
+              days: row.businessDays,
+            },
+            mailbox: { dailyCap: row.mailboxDailyCap, rampStartedAt: row.mailboxRampStartedAt },
+            sentByMailboxToday: 0,
+            sentToDomainLast24h: 0,
+            domainThrottleLimit: row.domainThrottleLimit,
+          });
+          const nextSendAt = decision.allowed ? decision.nextSendAt : decision.retryAt;
+          await tx
+            .update(enrollments)
+            .set({ status: "active", sentAt: now, currentStep: row.currentStep + 1, nextSendAt })
+            .where(eq(enrollments.id, row.enrollmentId));
+        } else {
+          await tx
+            .update(enrollments)
+            .set({ status: "completed", sentAt: now, nextSendAt: null })
+            .where(eq(enrollments.id, row.enrollmentId));
+        }
+
         await tx.insert(events).values({
           type: "message_sent",
-          payload: { enrollmentId: row.enrollmentId, rfcMessageId: result.rfcMessageId },
+          payload: { enrollmentId: row.enrollmentId, rfcMessageId: result.rfcMessageId, step: row.currentStep },
         });
       });
 

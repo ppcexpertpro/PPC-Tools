@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { campaigns, mailboxes, contacts, enrollments } from "@/db/schema";
+import { campaigns, mailboxes, contacts, enrollments, sequenceSteps } from "@/db/schema";
 import { runPreflight } from "@/lib/outreach/preflight";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/outreach/campaigns/[id]/preflight">) {
@@ -12,6 +12,12 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/outreach/ca
 
   const [mailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, campaign.mailboxId));
   if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
+
+  const steps = await db
+    .select({ subjectTemplate: sequenceSteps.subjectTemplate, bodyTemplate: sequenceSteps.bodyTemplate })
+    .from(sequenceSteps)
+    .where(eq(sequenceSteps.campaignId, id))
+    .orderBy(asc(sequenceSteps.stepOrder));
 
   const senderDomain = mailbox.fromEmail.split("@")[1] ?? "";
   const enrolledContacts = await db
@@ -24,7 +30,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/outreach/ca
     senderDomain,
     dkimSelector: "default",
     postalAddress: campaign.postalAddress,
-    templates: [campaign.subjectTemplate, campaign.bodyTemplate],
+    templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
     contacts: enrolledContacts,
   });
 

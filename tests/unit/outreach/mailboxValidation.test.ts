@@ -6,6 +6,7 @@ describe("createMailboxSchema", () => {
     fromName: "Jane",
     fromEmail: "jane@example.com",
     smtp: { host: "smtp.example.com", port: 587, secure: false, user: "jane", pass: "app-password" },
+    imap: { host: "imap.example.com", port: 993, secure: true },
   };
 
   it("accepts a valid payload and fills in the default daily cap", () => {

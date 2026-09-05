@@ -17,6 +17,9 @@ export function MailboxForm() {
   const [secure, setSecure] = useState(false);
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState(993);
+  const [imapSecure, setImapSecure] = useState(true);
   const [dailyCap, setDailyCap] = useState(15);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -34,6 +37,7 @@ export function MailboxForm() {
           fromEmail,
           dailyCap,
           smtp: { host, port, secure, user, pass },
+          imap: { host: imapHost, port: imapPort, secure: imapSecure },
         }),
       });
       const responseBody = await response.json();
@@ -80,6 +84,26 @@ export function MailboxForm() {
         <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} className={inputClass} />
       </label>
       <label className="flex flex-col gap-1 text-sm text-ink-muted">
+        IMAP host <span className="text-ink-faint">(for reply detection)</span>
+        <input value={imapHost} onChange={(e) => setImapHost(e.target.value)} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-ink-muted">
+        IMAP port
+        <input
+          type="number"
+          value={imapPort}
+          onChange={(e) => setImapPort(Number(e.target.value))}
+          className={inputClass}
+        />
+      </label>
+      <Checkbox
+        id="imap-secure"
+        label="Use TLS for IMAP"
+        checked={imapSecure}
+        onChange={setImapSecure}
+        className="sm:col-span-2"
+      />
+      <label className="flex flex-col gap-1 text-sm text-ink-muted">
         Daily send cap
         <input
           type="number"
@@ -92,7 +116,7 @@ export function MailboxForm() {
       <Button
         className="sm:col-span-2"
         loading={loading}
-        disabled={!fromName || !fromEmail || !host || !user || !pass}
+        disabled={!fromName || !fromEmail || !host || !user || !pass || !imapHost}
         onClick={handleSubmit}
       >
         Connect mailbox

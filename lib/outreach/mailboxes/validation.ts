@@ -12,6 +12,11 @@ export const createMailboxSchema = z.object({
     user: z.string().min(1),
     pass: z.string().min(1),
   }),
+  imap: z.object({
+    host: z.string().min(1),
+    port: z.number().int().positive(),
+    secure: z.boolean(),
+  }),
 });
 
 export type CreateMailboxInput = z.infer<typeof createMailboxSchema>;

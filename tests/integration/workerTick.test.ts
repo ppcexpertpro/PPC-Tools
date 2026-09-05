@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, messages, events } from "@/db/schema";
+import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runTick } from "@/worker/tick";
 import type { Transport } from "@/lib/outreach/transport/types";
@@ -26,7 +26,7 @@ function createFakeTransport(): Transport & { sentMessages: unknown[] } {
 describe("worker tick (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -54,15 +54,15 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({
-        mailboxId: mailbox.id,
-        name: "Test campaign",
-        subjectTemplate: "Hi {{first_name}}",
-        bodyTemplate: "Hello {{first_name}}, this is a test. Unsubscribe: {{unsubscribe_token}}",
-        postalAddress: "123 Main St",
-        status: "active",
-      })
+      .values({ mailboxId: mailbox.id, name: "Test campaign", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(sequenceSteps).values({
+      campaignId: campaign.id,
+      stepOrder: 1,
+      subjectTemplate: "Hi {{first_name}}",
+      bodyTemplate: "Hello {{first_name}}, this is a test. Unsubscribe: {{unsubscribe_token}}",
+      delayDays: 0,
+    });
 
     const [contact] = await db
       .insert(contacts)
@@ -122,15 +122,15 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({
-        mailboxId: mailbox.id,
-        name: "Test campaign",
-        subjectTemplate: "Hi {{first_name}}",
-        bodyTemplate: "Hello {{first_name}}",
-        postalAddress: "123 Main St",
-        status: "active",
-      })
+      .values({ mailboxId: mailbox.id, name: "Test campaign", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(sequenceSteps).values({
+      campaignId: campaign.id,
+      stepOrder: 1,
+      subjectTemplate: "Hi {{first_name}}",
+      bodyTemplate: "Hello {{first_name}}",
+      delayDays: 0,
+    });
 
     const [contactA] = await db.insert(contacts).values({ email: "a@example.com", fields: { first_name: "A" } }).returning();
     const [contactB] = await db.insert(contacts).values({ email: "b@example.com", fields: { first_name: "B" } }).returning();
@@ -152,5 +152,45 @@ describe("worker tick (integration)", () => {
       .where(eq(enrollments.campaignId, campaign.id));
     const stillActive = remainingActive.filter((e) => e.status === "active");
     expect(stillActive).toHaveLength(1); // the un-claimed one waits for the next tick
+  });
+
+  it("schedules the next step instead of completing when one exists", async () => {
+    const key = loadEncryptionKey();
+    const credentials = encrypt(
+      JSON.stringify({ host: "localhost", port: 1025, secure: false, user: "", pass: "" }),
+      key,
+    );
+
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "smtp", fromName: "Jane", fromEmail: "jane@example.com", encryptedCredentials: credentials, dailyCap: 50 })
+      .returning();
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ mailboxId: mailbox.id, name: "Two-step", postalAddress: "123 Main St", status: "active" })
+      .returning();
+
+    await db.insert(sequenceSteps).values([
+      { campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi {{first_name}}", bodyTemplate: "Step one", delayDays: 0 },
+      { campaignId: campaign.id, stepOrder: 2, subjectTemplate: "Following up", bodyTemplate: "Step two", delayDays: 2 },
+    ]);
+
+    const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: { first_name: "Alex" } }).returning();
+
+    const [enrollment] = await db
+      .insert(enrollments)
+      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date(Date.now() - 1000) })
+      .returning();
+
+    const fakeTransport = createFakeTransport();
+    const result = await runTick(new Date(), () => fakeTransport);
+    expect(result).toEqual({ attempted: 1, sent: 1, failed: 0 });
+
+    const [updated] = await db.select().from(enrollments).where(eq(enrollments.id, enrollment.id));
+    expect(updated.status).toBe("active");
+    expect(updated.currentStep).toBe(2);
+    expect(updated.nextSendAt).not.toBeNull();
+    expect(updated.nextSendAt!.getTime()).toBeGreaterThan(Date.now() + 24 * 60 * 60 * 1000); // roughly 2 days out
   });
 });

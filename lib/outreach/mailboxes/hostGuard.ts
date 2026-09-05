@@ -4,6 +4,8 @@ import net from "node:net";
 /** Standard SMTP submission/relay ports. Anything else is refused, since
  * there is no legitimate reason for this app to open arbitrary ports. */
 const ALLOWED_SMTP_PORTS = new Set([25, 465, 587, 2525]);
+/** Standard IMAP ports: 143 (plaintext/STARTTLS) and 993 (implicit TLS). */
+const ALLOWED_IMAP_PORTS = new Set([143, 993]);
 
 export type AddressLookup = (host: string) => Promise<{ address: string; family: 4 | 6 }[]>;
 
@@ -39,18 +41,20 @@ async function defaultLookup(host: string): ReturnType<AddressLookup> {
 
 /**
  * Throws unless `host:port` is safe for this server to open an outbound
- * SMTP connection to: a real, resolvable, public (non-private/loopback/
- * link-local) address, on a standard SMTP port. Prevents the mailbox-connect
- * endpoint being used as an SSRF probe against internal infrastructure
- * (including cloud metadata endpoints).
+ * connection to: a real, resolvable, public (non-private/loopback/
+ * link-local) address, on one of `allowedPorts`. Shared core for both the
+ * SMTP and IMAP guards - prevents mailbox-connect being used as an SSRF
+ * probe against internal infrastructure (including cloud metadata
+ * endpoints), regardless of which protocol's port set applies.
  */
-export async function assertPublicSmtpHost(
+async function assertPublicHost(
   host: string,
   port: number,
+  allowedPorts: Set<number>,
   lookup: AddressLookup = defaultLookup,
 ): Promise<void> {
-  if (!ALLOWED_SMTP_PORTS.has(port)) {
-    throw new Error(`Port ${port} is not an allowed SMTP port.`);
+  if (!allowedPorts.has(port)) {
+    throw new Error(`Port ${port} is not an allowed port.`);
   }
 
   const family = net.isIP(host);
@@ -64,7 +68,23 @@ export async function assertPublicSmtpHost(
     const unsafe =
       address.family === 4 ? isPrivateOrReservedIPv4(address.address) : isPrivateOrReservedIPv6(address.address);
     if (unsafe) {
-      throw new Error(`SMTP host "${host}" resolves to a private or reserved address and is not allowed.`);
+      throw new Error(`Host "${host}" resolves to a private or reserved address and is not allowed.`);
     }
   }
+}
+
+export async function assertPublicSmtpHost(
+  host: string,
+  port: number,
+  lookup: AddressLookup = defaultLookup,
+): Promise<void> {
+  return assertPublicHost(host, port, ALLOWED_SMTP_PORTS, lookup);
+}
+
+export async function assertPublicImapHost(
+  host: string,
+  port: number,
+  lookup: AddressLookup = defaultLookup,
+): Promise<void> {
+  return assertPublicHost(host, port, ALLOWED_IMAP_PORTS, lookup);
 }

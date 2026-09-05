@@ -8,11 +8,16 @@ const config: Config = {
   testEnvironment: "node",
   roots: ["<rootDir>/tests/integration"],
   testTimeout: 30000,
-  // These tests share one live database and clean up with blunt TRUNCATEs.
-  // Jest's default parallel-file workers would let one file's beforeEach
-  // wipe rows another file's test just inserted mid-test - serial execution
-  // is required, the same reason playwright.config.ts pins workers to 1.
+  // Every test runs inside a transaction that's always rolled back (see
+  // tests/integration/setup.ts and db/client.ts) - required because these
+  // tests run against the same live database the deployed app uses, not a
+  // separate disposable one. Parallel Jest workers would each open their
+  // own transaction and TRUNCATE the same tables concurrently: correct
+  // (rollback keeps each worker's changes invisible to the others), but
+  // the ACCESS EXCLUSIVE lock TRUNCATE takes would make them serialize on
+  // lock waits anyway - serial execution up front is simpler and faster.
   maxWorkers: 1,
+  setupFilesAfterEnv: ["<rootDir>/tests/integration/setup.ts"],
 };
 
 export default createJestConfig(config);

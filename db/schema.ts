@@ -18,6 +18,7 @@ export const mailboxes = pgTable("mailboxes", {
   encryptedCredentials: text("encrypted_credentials").notNull(),
   dailyCap: integer("daily_cap").notNull().default(50),
   rampStartedAt: timestamp("ramp_started_at", { withTimezone: true }),
+  lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
   health: text("health").notNull().default("healthy"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -29,8 +30,6 @@ export const campaigns = pgTable("campaigns", {
     .notNull()
     .references(() => mailboxes.id),
   name: text("name").notNull(),
-  subjectTemplate: text("subject_template").notNull(),
-  bodyTemplate: text("body_template").notNull(),
   postalAddress: text("postal_address").notNull(),
   status: text("status").notNull().default("draft"),
   businessHoursStart: integer("business_hours_start").notNull().default(9),
@@ -44,6 +43,28 @@ export const campaigns = pgTable("campaigns", {
   domainThrottleLimit: integer("domain_throttle_limit").notNull().default(3),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Up to 5 steps per campaign (enforced by the create-campaign Zod schema,
+ * not a DB constraint). subject_template/body_template lived directly on
+ * campaigns in Phase 1; a data-preserving migration carries any existing
+ * campaign's templates into its step 1 row here. */
+export const sequenceSteps = pgTable(
+  "sequence_steps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    stepOrder: integer("step_order").notNull(),
+    subjectTemplate: text("subject_template").notNull(),
+    bodyTemplate: text("body_template").notNull(),
+    /** Days after the *previous* step (or after the campaign starts, for
+     * step 1, where it is always 0). */
+    delayDays: integer("delay_days").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("sequence_steps_campaign_order_idx").on(table.campaignId, table.stepOrder)],
+);
 
 export const contacts = pgTable(
   "contacts",
@@ -71,6 +92,7 @@ export const enrollments = pgTable(
       .notNull()
       .references(() => contacts.id),
     status: text("status").notNull().default("pending"),
+    currentStep: integer("current_step").notNull().default(1),
     // Nullable: unset while "pending" (imported but campaign not yet started).
     nextSendAt: timestamp("next_send_at", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -84,6 +106,7 @@ export const messages = pgTable("messages", {
   enrollmentId: uuid("enrollment_id")
     .notNull()
     .references(() => enrollments.id),
+  stepId: uuid("step_id").references(() => sequenceSteps.id),
   rfcMessageId: text("rfc_message_id").notNull(),
   status: text("status").notNull().default("sent"),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),

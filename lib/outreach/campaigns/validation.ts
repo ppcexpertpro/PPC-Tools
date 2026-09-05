@@ -1,10 +1,15 @@
 import { z } from "zod";
 
+export const sequenceStepSchema = z.object({
+  subjectTemplate: z.string().min(1),
+  bodyTemplate: z.string().min(1),
+  delayDays: z.number().int().min(0).default(0),
+});
+
 export const createCampaignSchema = z.object({
   mailboxId: z.uuid(),
   name: z.string().min(1),
-  subjectTemplate: z.string().min(1),
-  bodyTemplate: z.string().min(1),
+  steps: z.array(sequenceStepSchema).min(1).max(5),
   postalAddress: z.string().min(1),
   baseIntervalSeconds: z.number().int().positive().default(60),
   businessHoursStart: z.number().int().min(0).max(23).default(9),
@@ -14,3 +19,4 @@ export const createCampaignSchema = z.object({
 });
 
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+export type SequenceStepInput = z.infer<typeof sequenceStepSchema>;

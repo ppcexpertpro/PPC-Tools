@@ -9,6 +9,7 @@ import {
   events,
   users,
   sessions,
+  sequenceSteps,
 } from "@/db/schema";
 
 function columnNames(table: PgTable) {
@@ -33,13 +34,13 @@ describe("outreach db schema", () => {
   });
 
   it("defines the expected campaign columns", () => {
+    // subject_template/body_template moved to sequence_steps in Phase 2 -
+    // see "defines the expected sequence step columns..." below.
     expect(columnNames(campaigns)).toEqual(
       expect.arrayContaining([
         "id",
         "mailbox_id",
         "name",
-        "subject_template",
-        "body_template",
         "postal_address",
         "status",
         "business_hours_start",
@@ -78,5 +79,23 @@ describe("outreach db schema", () => {
     expect(columnNames(sessions)).toEqual(
       expect.arrayContaining(["id", "user_id", "token_hash", "expires_at", "created_at"]),
     );
+  });
+
+  it("defines the expected sequence step columns and the new step-tracking columns", () => {
+    expect(columnNames(sequenceSteps)).toEqual(
+      expect.arrayContaining([
+        "id",
+        "campaign_id",
+        "step_order",
+        "subject_template",
+        "body_template",
+        "delay_days",
+        "created_at",
+      ]),
+    );
+    expect(columnNames(enrollments)).toEqual(expect.arrayContaining(["current_step"]));
+    expect(columnNames(messages)).toEqual(expect.arrayContaining(["step_id"]));
+    expect(columnNames(mailboxes)).toEqual(expect.arrayContaining(["last_polled_at"]));
+    expect(columnNames(campaigns)).not.toEqual(expect.arrayContaining(["subject_template", "body_template"]));
   });
 });

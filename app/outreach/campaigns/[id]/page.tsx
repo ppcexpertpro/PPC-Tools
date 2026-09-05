@@ -1,7 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
-import { campaigns, enrollments } from "@/db/schema";
+import { campaigns, enrollments, sequenceSteps } from "@/db/schema";
 import { CampaignStartButton } from "./CampaignStartButton";
 import { ImportContactsForm } from "./ImportContactsForm";
 import { StatusPoller } from "./StatusPoller";
@@ -15,6 +15,16 @@ export default async function CampaignStatusPage({ params }: { params: Promise<{
   const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
   if (!campaign) notFound();
 
+  const steps = await db
+    .select({
+      stepOrder: sequenceSteps.stepOrder,
+      subjectTemplate: sequenceSteps.subjectTemplate,
+      delayDays: sequenceSteps.delayDays,
+    })
+    .from(sequenceSteps)
+    .where(eq(sequenceSteps.campaignId, id))
+    .orderBy(asc(sequenceSteps.stepOrder));
+
   const statusCounts = await db
     .select({ status: enrollments.status, count: sql<number>`count(*)::int` })
     .from(enrollments)
@@ -26,6 +36,18 @@ export default async function CampaignStatusPage({ params }: { params: Promise<{
       <StatusPoller active={campaign.status === "active"} />
       <p className="font-mono text-xs uppercase tracking-wide text-ink-faint">{campaign.status}</p>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">{campaign.name}</h1>
+
+      <ol className="mt-6 flex flex-col gap-2">
+        {steps.map((step) => (
+          <li key={step.stepOrder} className="rounded-2xl border border-border bg-surface p-4 text-sm">
+            <span className="font-mono text-xs text-ink-faint">
+              Step {step.stepOrder}
+              {step.stepOrder > 1 && ` - ${step.delayDays}d after step ${step.stepOrder - 1}`}
+            </span>
+            <p className="mt-1 text-ink">{step.subjectTemplate}</p>
+          </li>
+        ))}
+      </ol>
 
       <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {statusCounts.map((row) => (
