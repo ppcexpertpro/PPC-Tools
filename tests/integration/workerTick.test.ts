@@ -23,6 +23,18 @@ function createFakeTransport(): Transport & { sentMessages: unknown[] } {
   };
 }
 
+function createFakeGmailTransport(): Transport & { sentMessages: unknown[] } {
+  const sentMessages: unknown[] = [];
+  return {
+    sentMessages,
+    async verify() {},
+    async send(message) {
+      sentMessages.push(message);
+      return { rfcMessageId: `<fake-gmail-${sentMessages.length}@test>`, providerThreadId: "fake-thread-id" };
+    },
+  };
+}
+
 describe("worker tick (integration)", () => {
   beforeEach(async () => {
     await db.execute(
@@ -192,5 +204,45 @@ describe("worker tick (integration)", () => {
     expect(updated.currentStep).toBe(2);
     expect(updated.nextSendAt).not.toBeNull();
     expect(updated.nextSendAt!.getTime()).toBeGreaterThan(Date.now() + 24 * 60 * 60 * 1000); // roughly 2 days out
+  });
+
+  it("dispatches to the Gmail transport for a gmail_oauth mailbox, passing providerThreadId through", async () => {
+    const key = loadEncryptionKey();
+    const credentials = encrypt(JSON.stringify({ oauth: { refreshToken: "1//test", email: "jane@gmail.com" } }), key);
+
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "gmail_oauth", fromName: "Jane", fromEmail: "jane@gmail.com", encryptedCredentials: credentials, dailyCap: 50 })
+      .returning();
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ mailboxId: mailbox.id, name: "Gmail test", postalAddress: "123 Main St", status: "active" })
+      .returning();
+    await db.insert(sequenceSteps).values({
+      campaignId: campaign.id,
+      stepOrder: 1,
+      subjectTemplate: "Hi {{first_name}}",
+      bodyTemplate: "Hello {{first_name}}",
+      delayDays: 0,
+    });
+
+    const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: { first_name: "Alex" } }).returning();
+    const [enrollment] = await db
+      .insert(enrollments)
+      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", nextSendAt: new Date(Date.now() - 1000) })
+      .returning();
+
+    const fakeSmtp = createFakeTransport();
+    const fakeGmail = createFakeGmailTransport();
+    const result = await runTick(new Date(), () => fakeSmtp, () => fakeGmail);
+
+    expect(result).toEqual({ attempted: 1, sent: 1, failed: 0 });
+    expect(fakeSmtp.sentMessages).toHaveLength(0); // SMTP path never touched
+    expect(fakeGmail.sentMessages).toHaveLength(1);
+
+    const sentMessageRows = await db.select().from(messages).where(eq(messages.enrollmentId, enrollment.id));
+    expect(sentMessageRows).toHaveLength(1);
+    expect(sentMessageRows[0].providerThreadId).toBe("fake-thread-id");
   });
 });

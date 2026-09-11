@@ -98,4 +98,9 @@ describe("outreach db schema", () => {
     expect(columnNames(mailboxes)).toEqual(expect.arrayContaining(["last_polled_at"]));
     expect(columnNames(campaigns)).not.toEqual(expect.arrayContaining(["subject_template", "body_template"]));
   });
+
+  it("defines the Gmail-specific history/thread tracking columns", () => {
+    expect(columnNames(mailboxes)).toEqual(expect.arrayContaining(["last_history_id"]));
+    expect(columnNames(messages)).toEqual(expect.arrayContaining(["provider_thread_id"]));
+  });
 });

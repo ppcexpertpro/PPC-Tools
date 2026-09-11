@@ -4,8 +4,9 @@ import { db } from "@/db/client";
 import { campaigns, contacts, enrollments, mailboxes, suppressions } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
-import { createImapClient, type ImapClient } from "@/lib/outreach/transport/imap";
-import type { ImapCredentials } from "@/lib/outreach/mailboxes/credentials";
+import { createImapClient, type ImapClient, type InboxMessage } from "@/lib/outreach/transport/imap";
+import { createGmailPollClient, type GmailPollClient } from "@/lib/outreach/transport/gmailPoll";
+import type { ImapCredentials, GoogleOAuthCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { isDsnMessage, extractStatusCode, classifyStatusCode } from "@/lib/outreach/poller/bounce";
 import { matchReplies } from "@/lib/outreach/poller/replyMatching";
 
@@ -21,15 +22,19 @@ export interface PollResult {
 
 export async function runPoll(
   now: Date = new Date(),
-  createClient: (credentials: ImapCredentials) => ImapClient = createImapClient,
+  createImapPollClient: (credentials: ImapCredentials) => ImapClient = createImapClient,
+  createGmailPollClientFactory: (credentials: GoogleOAuthCredentials) => GmailPollClient = createGmailPollClient,
 ): Promise<PollResult> {
   const encryptionKey = loadEncryptionKey();
 
   const activeMailboxes = await db
     .selectDistinct({
       mailboxId: mailboxes.id,
+      provider: mailboxes.provider,
       encryptedCredentials: mailboxes.encryptedCredentials,
       lastPolledAt: mailboxes.lastPolledAt,
+      lastHistoryId: mailboxes.lastHistoryId,
+      createdAt: mailboxes.createdAt,
     })
     .from(mailboxes)
     .innerJoin(campaigns, eq(campaigns.mailboxId, mailboxes.id))
@@ -41,11 +46,25 @@ export async function runPoll(
 
   for (const mailbox of activeMailboxes) {
     const credentials = parseMailboxCredentials(decrypt(mailbox.encryptedCredentials, encryptionKey));
-    if (!credentials.imap) continue; // connected before Phase 2, no IMAP details yet
 
-    const since = mailbox.lastPolledAt ?? new Date(0);
-    const client = createClient(credentials.imap);
-    const inboxMessages = await client.fetchSince(since);
+    let inboxMessages: InboxMessage[];
+    let updates: { lastPolledAt?: Date; lastHistoryId?: string | null };
+
+    if (mailbox.provider === "gmail_oauth") {
+      if (!credentials.oauth) continue; // shouldn't happen by construction, but never crash the poll loop over it
+      const client = createGmailPollClientFactory(credentials.oauth);
+      const result = await client.fetchNew(mailbox.lastHistoryId, mailbox.createdAt);
+      inboxMessages = result.messages;
+      updates = { lastHistoryId: result.newHistoryId };
+    } else if (credentials.imap) {
+      const since = mailbox.lastPolledAt ?? new Date(0);
+      const client = createImapPollClient(credentials.imap);
+      inboxMessages = await client.fetchSince(since);
+      updates = { lastPolledAt: now };
+    } else {
+      continue; // SMTP mailbox connected before Phase 2, no IMAP details yet
+    }
+
     mailboxesPolled += 1;
 
     const repliedFromAddresses = new Set<string>();
@@ -65,7 +84,7 @@ export async function runPoll(
       replied += await handleReplies(mailbox.mailboxId, repliedFromAddresses);
     }
 
-    await db.update(mailboxes).set({ lastPolledAt: now }).where(eq(mailboxes.id, mailbox.mailboxId));
+    await db.update(mailboxes).set(updates).where(eq(mailboxes.id, mailbox.mailboxId));
   }
 
   return { mailboxesPolled, replied, bounced };

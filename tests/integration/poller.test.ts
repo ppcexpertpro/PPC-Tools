@@ -4,12 +4,22 @@ import { campaigns, contacts, enrollments, mailboxes, sequenceSteps, suppression
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runPoll } from "@/worker/poller";
 import type { ImapClient } from "@/lib/outreach/transport/imap";
+import type { GmailPollClient } from "@/lib/outreach/transport/gmailPoll";
 
 function fakeImapClient(messages: { from: string; source: string }[]): ImapClient {
   return {
     async verify() {},
     async fetchSince() {
       return messages;
+    },
+  };
+}
+
+function fakeGmailPollClient(messages: { from: string; source: string }[]): GmailPollClient {
+  return {
+    async verify() {},
+    async fetchNew() {
+      return { messages, newHistoryId: "9999" };
     },
   };
 }
@@ -128,5 +138,38 @@ describe("poller (integration)", () => {
 
     const result = await runPoll(new Date(), () => fakeImapClient([]));
     expect(result).toEqual({ mailboxesPolled: 0, replied: 0, bounced: 0 });
+  });
+
+  it("dispatches Gmail-provider mailboxes through history.list instead of IMAP", async () => {
+    const key = loadEncryptionKey();
+    const credentials = encrypt(JSON.stringify({ oauth: { refreshToken: "1//test", email: "jane@gmail.com" } }), key);
+
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "gmail_oauth", fromName: "Jane", fromEmail: "jane@gmail.com", encryptedCredentials: credentials, dailyCap: 50 })
+      .returning();
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ mailboxId: mailbox.id, name: "Test", postalAddress: "123 Main St", status: "active" })
+      .returning();
+    await db.insert(sequenceSteps).values({ campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi", bodyTemplate: "Body", delayDays: 0 });
+    const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: {} }).returning();
+    const [enrollment] = await db
+      .insert(enrollments)
+      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date() })
+      .returning();
+
+    const result = await runPoll(
+      new Date(),
+      () => fakeImapClient([]),
+      () => fakeGmailPollClient([{ from: "recipient@example.com", source: "Subject: Re: hi\n\nSure." }]),
+    );
+
+    expect(result).toEqual({ mailboxesPolled: 1, replied: 1, bounced: 0 });
+    const [updated] = await db.select().from(enrollments).where(eq(enrollments.id, enrollment.id));
+    expect(updated.status).toBe("replied");
+
+    const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
+    expect(updatedMailbox.lastHistoryId).toBe("9999");
   });
 });

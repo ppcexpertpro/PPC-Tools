@@ -5,8 +5,10 @@ import { campaigns, contacts, enrollments, mailboxes, messages, events, sequence
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { createSmtpTransport } from "@/lib/outreach/transport/smtp";
+import { createGmailTransport } from "@/lib/outreach/transport/gmail";
 import type { Transport } from "@/lib/outreach/transport/types";
 import type { SmtpCredentials } from "@/lib/outreach/transport/smtp";
+import type { GoogleOAuthCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { renderTemplate } from "@/lib/outreach/templates/render";
 import { buildThreadHeaders } from "@/lib/outreach/templates/threading";
 import { signUnsubscribeToken, loadUnsubscribeSecret } from "@/lib/outreach/unsubscribe/token";
@@ -38,13 +40,15 @@ export interface TickResult {
  * misleading ceremony. If this is ever scaled to multiple worker
  * processes, the claim step needs redesigning as a single atomic
  * claim-and-mark statement (e.g. `UPDATE ... FROM (SELECT ... FOR UPDATE
- * SKIP LOCKED) ... RETURNING`) instead. `createTransport` is injectable so
- * this can be integration-tested against a real database without a real
- * SMTP server.
+ * SKIP LOCKED) ... RETURNING`) instead. `createSmtpTransportClient`/
+ * `createGmailTransportClient` are injectable so this can be
+ * integration-tested against a real database without a real SMTP server or
+ * Google account.
  */
 export async function runTick(
   now: Date = new Date(),
-  createTransport: (credentials: SmtpCredentials) => Transport = createSmtpTransport,
+  createSmtpTransportClient: (credentials: SmtpCredentials) => Transport = createSmtpTransport,
+  createGmailTransportClient: (credentials: GoogleOAuthCredentials) => Transport = createGmailTransport,
 ): Promise<TickResult> {
   const encryptionKey = loadEncryptionKey();
   const unsubscribeSecret = loadUnsubscribeSecret();
@@ -55,6 +59,7 @@ export async function runTick(
       campaignId: enrollments.campaignId,
       currentStep: enrollments.currentStep,
       mailboxId: mailboxes.id,
+      mailboxProvider: mailboxes.provider,
       mailboxCredentials: mailboxes.encryptedCredentials,
       mailboxFromName: mailboxes.fromName,
       mailboxFromEmail: mailboxes.fromEmail,
@@ -105,14 +110,23 @@ export async function runTick(
 
     try {
       const credentials = parseMailboxCredentials(decrypt(row.mailboxCredentials, encryptionKey));
-      const transport = createTransport(credentials.smtp);
+
+      let transport: Transport;
+      if (row.mailboxProvider === "gmail_oauth") {
+        if (!credentials.oauth) throw new Error(`Mailbox ${row.mailboxId} is gmail_oauth but has no oauth credentials.`);
+        transport = createGmailTransportClient(credentials.oauth);
+      } else {
+        if (!credentials.smtp) throw new Error(`Mailbox ${row.mailboxId} is not gmail_oauth but has no smtp credentials.`);
+        transport = createSmtpTransportClient(credentials.smtp);
+      }
 
       const priorMessages = await db
-        .select({ rfcMessageId: messages.rfcMessageId })
+        .select({ rfcMessageId: messages.rfcMessageId, providerThreadId: messages.providerThreadId })
         .from(messages)
         .where(eq(messages.enrollmentId, row.enrollmentId))
         .orderBy(asc(messages.sentAt));
       const threadHeaders = buildThreadHeaders(priorMessages.map((m) => m.rfcMessageId));
+      const providerThreadId = priorMessages[0]?.providerThreadId ?? undefined;
 
       const unsubscribeToken = signUnsubscribeToken(row.enrollmentId, unsubscribeSecret);
       const fields = { ...row.contactFields, unsubscribe_token: unsubscribeToken };
@@ -127,6 +141,7 @@ export async function runTick(
         text,
         inReplyTo: threadHeaders.inReplyTo,
         references: threadHeaders.references,
+        threadId: providerThreadId,
       });
 
       const [nextStep] = await db
@@ -139,6 +154,7 @@ export async function runTick(
           enrollmentId: row.enrollmentId,
           stepId: row.stepId,
           rfcMessageId: result.rfcMessageId,
+          providerThreadId: result.providerThreadId ?? null,
           status: "sent",
         });
 

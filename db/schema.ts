@@ -19,6 +19,7 @@ export const mailboxes = pgTable("mailboxes", {
   dailyCap: integer("daily_cap").notNull().default(50),
   rampStartedAt: timestamp("ramp_started_at", { withTimezone: true }),
   lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
+  lastHistoryId: text("last_history_id"),
   health: text("health").notNull().default("healthy"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -107,6 +108,7 @@ export const messages = pgTable("messages", {
     .notNull()
     .references(() => enrollments.id),
   stepId: uuid("step_id").references(() => sequenceSteps.id),
+  providerThreadId: text("provider_thread_id"),
   rfcMessageId: text("rfc_message_id").notNull(),
   status: text("status").notNull().default("sent"),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
