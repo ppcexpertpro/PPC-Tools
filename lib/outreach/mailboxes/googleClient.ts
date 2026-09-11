@@ -6,9 +6,19 @@ export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
 ];
 
+/** The app's own canonical origin - always read from the env var, never
+ * from an incoming request's Host header. Behind a reverse proxy or a
+ * container bound to 0.0.0.0, the request's own apparent origin can be
+ * unreliable (e.g. resolving to "0.0.0.0:3000") even though the request
+ * genuinely arrived at the public domain - so anything that needs to
+ * build a URL the *browser* will follow next (an OAuth redirect_uri, a
+ * post-auth redirect) must use this instead of request.url. */
+export function siteUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+}
+
 export function googleRedirectUri(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${siteUrl}/api/outreach/mailboxes/google/callback`;
+  return `${siteUrl()}/api/outreach/mailboxes/google/callback`;
 }
 
 function googleClientCredentials(): { clientId: string; clientSecret: string } {

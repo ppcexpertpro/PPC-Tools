@@ -5,7 +5,7 @@ import { google } from "googleapis";
 import { db } from "@/db/client";
 import { mailboxes } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
-import { createGoogleOAuthClient } from "@/lib/outreach/mailboxes/googleClient";
+import { createGoogleOAuthClient, siteUrl } from "@/lib/outreach/mailboxes/googleClient";
 import { STATE_COOKIE_NAME } from "../start/route";
 
 function statesMatch(a: string, b: string): boolean {
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   cookieStore.delete(STATE_COOKIE_NAME);
 
   const redirectWithError = (message: string) =>
-    NextResponse.redirect(new URL(`/outreach/mailboxes?googleError=${encodeURIComponent(message)}`, request.url));
+    NextResponse.redirect(new URL(`/outreach/mailboxes?googleError=${encodeURIComponent(message)}`, siteUrl()));
 
   if (error) return redirectWithError(`Google sign-in was cancelled or failed (${error}).`);
   if (!code) return redirectWithError("Google did not return an authorization code.");
@@ -74,5 +74,5 @@ export async function GET(request: Request) {
     })
     .returning({ id: mailboxes.id });
 
-  return NextResponse.redirect(new URL(`/outreach/mailboxes?connected=${mailbox.id}`, request.url));
+  return NextResponse.redirect(new URL(`/outreach/mailboxes?connected=${mailbox.id}`, siteUrl()));
 }
