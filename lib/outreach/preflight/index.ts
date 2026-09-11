@@ -7,6 +7,11 @@ export interface PreflightInput {
   postalAddress: string;
   templates: string[];
   contacts: TemplateContact[];
+  /** Skip the SPF/DKIM/DMARC DNS lookups for this domain - used for a
+   * Gmail-OAuth-connected mailbox's domain, where Google's own sending
+   * infrastructure authenticates the mail and there's no DNS record for
+   * the caller to configure or for this to discover. */
+  skipDnsChecks?: boolean;
 }
 
 export interface PreflightResult {
@@ -17,15 +22,16 @@ export interface PreflightResult {
 }
 
 export async function runPreflight(input: PreflightInput, resolveTxt?: TxtResolver): Promise<PreflightResult> {
-  const [spf, dmarc, dkim] = await Promise.all([
-    checkSpf(input.senderDomain, resolveTxt),
-    checkDmarc(input.senderDomain, resolveTxt),
-    checkDkim(input.senderDomain, input.dkimSelector, resolveTxt),
-  ]);
+  const checks = input.skipDnsChecks
+    ? []
+    : await Promise.all([
+        checkSpf(input.senderDomain, resolveTxt),
+        checkDmarc(input.senderDomain, resolveTxt),
+        checkDkim(input.senderDomain, input.dkimSelector, resolveTxt),
+      ]);
 
   const unresolvedContacts = findUnresolvedContacts(input.templates, input.contacts);
   const hasPostalAddress = input.postalAddress.trim().length > 0;
-  const checks = [spf, dmarc, dkim];
 
   return {
     pass: checks.every((c) => c.pass) && unresolvedContacts.length === 0 && hasPostalAddress,

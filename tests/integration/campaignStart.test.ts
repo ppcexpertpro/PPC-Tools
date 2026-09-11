@@ -99,4 +99,42 @@ describe("POST /api/outreach/campaigns/[id]/start (integration)", () => {
     const response = await POST(new Request("http://localhost", { method: "POST" }), { params: Promise.resolve({ id: campaign.id }) });
     expect(response.status).toBe(422);
   });
+
+  it("starts a campaign on a gmail_oauth mailbox using the default {{unsubscribe_token}} footer, without a DNS-configurable domain", async () => {
+    // Regression test for two real bugs found via a live user report:
+    // (1) {{unsubscribe_token}} is synthesized by the worker at send time,
+    //     never stored on a contact, so the merge-field check used to
+    //     flag it as unresolved on every contact, on every campaign.
+    // (2) gmail.com genuinely has no default._domainkey TXT record (it's
+    //     Google's own infrastructure, not a domain the caller configures
+    //     DNS for) - a gmail_oauth mailbox's domain must skip DNS checks
+    //     rather than fail them. This hits real DNS, deliberately, so the
+    //     fix is proven against gmail.com's actual current records rather
+    //     than a fake resolver.
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "gmail_oauth", fromName: "Jane", fromEmail: "jane@gmail.com", encryptedCredentials: "x", dailyCap: 50 })
+      .returning();
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ name: "Gmail default-footer test", postalAddress: "123 Main St", status: "draft" })
+      .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
+    await db.insert(sequenceSteps).values({
+      campaignId: campaign.id,
+      stepOrder: 1,
+      subjectTemplate: "Hi {{first_name}}",
+      bodyTemplate: "Hi {{first_name}},\n\n\n\nUnsubscribe: {{unsubscribe_token}}",
+      delayDays: 0,
+    });
+    const [contact] = await db.insert(contacts).values({ email: "recipient@acme.com", fields: { first_name: "Alex" } }).returning();
+    await db.insert(enrollments).values({ campaignId: campaign.id, contactId: contact.id, status: "pending" });
+
+    const response = await POST(new Request("http://localhost", { method: "POST" }), {
+      params: Promise.resolve({ id: campaign.id }),
+    });
+
+    expect(response.status).toBe(200);
+  });
 });

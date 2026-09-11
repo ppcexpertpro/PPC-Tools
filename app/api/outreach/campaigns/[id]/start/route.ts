@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { db, runAtomic } from "@/db/client";
 import { campaigns, campaignMailboxes, mailboxes, contacts, enrollments, sequenceSteps } from "@/db/schema";
-import { runPoolPreflight } from "@/lib/outreach/preflight/pool";
+import { runPoolPreflight, summarizePoolDomains } from "@/lib/outreach/preflight/pool";
 import { scheduleCampaignStart, type PoolMailbox } from "@/lib/outreach/campaigns/start";
 import { countSentByMailboxToday } from "@/lib/outreach/scheduler/sendCounts";
 
@@ -18,6 +18,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
   const pool = await db
     .select({
       id: mailboxes.id,
+      provider: mailboxes.provider,
       fromEmail: mailboxes.fromEmail,
       dailyCap: mailboxes.dailyCap,
       rampStartedAt: mailboxes.rampStartedAt,
@@ -58,13 +59,22 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
     return NextResponse.json({ error: "No pending contacts to enroll" }, { status: 422 });
   }
 
-  const senderDomains = [...new Set(healthyPool.map((m) => m.fromEmail.split("@")[1] ?? ""))];
+  const { senderDomains, trustedDomains } = summarizePoolDomains(healthyPool);
   const preflight = await runPoolPreflight({
     senderDomains,
+    trustedDomains,
     dkimSelector: "default",
     postalAddress: campaign.postalAddress,
     templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
-    contacts: pending.map((p) => ({ id: p.contactId, email: p.email, fields: p.fields })),
+    // unsubscribe_token is synthesized by the worker at send time (see
+    // worker/tick.ts) - it's never stored on a contact, so a placeholder
+    // is supplied here purely so the merge-field check doesn't flag every
+    // contact as missing a field that will always resolve by send time.
+    contacts: pending.map((p) => ({
+      id: p.contactId,
+      email: p.email,
+      fields: { ...p.fields, unsubscribe_token: "placeholder" },
+    })),
   });
 
   if (!preflight.pass) {

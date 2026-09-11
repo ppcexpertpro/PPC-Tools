@@ -51,4 +51,26 @@ describe("runPreflight", () => {
     expect(result.pass).toBe(false);
     expect(result.unresolvedContacts).toHaveLength(1);
   });
+
+  it("skips SPF/DKIM/DMARC lookups when skipDnsChecks is set, e.g. for a Gmail-OAuth mailbox's domain", async () => {
+    const noResolutionResolver = jest.fn(async () => {
+      throw new Error("should never be called");
+    });
+
+    const result = await runPreflight(
+      {
+        senderDomain: "gmail.com",
+        dkimSelector: "default",
+        postalAddress: "123 Main St",
+        templates: ["Hi {{first_name}}"],
+        contacts: [{ id: "1", email: "a@x.com", fields: { first_name: "Jane" } }],
+        skipDnsChecks: true,
+      },
+      noResolutionResolver,
+    );
+
+    expect(noResolutionResolver).not.toHaveBeenCalled();
+    expect(result.checks).toEqual([]);
+    expect(result.pass).toBe(true);
+  });
 });
