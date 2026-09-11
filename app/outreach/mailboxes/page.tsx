@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { db } from "@/db/client";
 import { mailboxes } from "@/db/schema";
 import { MailboxForm } from "./MailboxForm";
+import { ResumeMailboxButton } from "./ResumeMailboxButton";
 
 export const metadata = { title: "Mailboxes | PPC Keyword Utilities Suite" };
 
@@ -30,7 +32,12 @@ export default async function MailboxesPage({
 
   return (
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-12 outline-none sm:px-6">
-      <h1 className="font-display text-3xl font-bold text-ink">Mailboxes</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl font-bold text-ink">Mailboxes</h1>
+        <Link href="/outreach/dashboard" className="text-sm text-signal underline underline-offset-2">
+          Dashboard
+        </Link>
+      </div>
 
       {connected && (
         <p className="mt-4 rounded-md border border-signal/30 bg-signal-soft px-4 py-3 text-sm text-signal-strong">
@@ -45,12 +52,15 @@ export default async function MailboxesPage({
 
       <ul className="mt-6 flex flex-col gap-2">
         {rows.map((mailbox) => (
-          <li key={mailbox.id} className="rounded-2xl border border-border bg-surface p-4 text-sm">
-            <span className="font-medium text-ink">{mailbox.fromName}</span>{" "}
-            <span className="text-ink-muted">&lt;{mailbox.fromEmail}&gt;</span>
-            <span className="ml-2 font-mono text-xs text-ink-faint">
-              {mailbox.provider === "gmail_oauth" ? "Google" : "SMTP"} - {mailbox.dailyCap}/day - {mailbox.health}
-            </span>
+          <li key={mailbox.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 text-sm">
+            <div>
+              <span className="font-medium text-ink">{mailbox.fromName}</span>{" "}
+              <span className="text-ink-muted">&lt;{mailbox.fromEmail}&gt;</span>
+              <span className="ml-2 font-mono text-xs text-ink-faint">
+                {mailbox.provider === "gmail_oauth" ? "Google" : "SMTP"} - {mailbox.dailyCap}/day - {mailbox.health}
+              </span>
+            </div>
+            {mailbox.health === "paused" && <ResumeMailboxButton mailboxId={mailbox.id} />}
           </li>
         ))}
       </ul>

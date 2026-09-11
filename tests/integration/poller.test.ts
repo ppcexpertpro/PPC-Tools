@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, sequenceSteps, suppressions } from "@/db/schema";
+import { campaigns, campaignMailboxes, contacts, enrollments, events, mailboxes, messages, sequenceSteps, suppressions } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runPoll } from "@/worker/poller";
 import type { ImapClient } from "@/lib/outreach/transport/imap";
@@ -27,7 +27,7 @@ function fakeGmailPollClient(messages: { from: string; source: string }[]): Gmai
 describe("poller (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -50,13 +50,14 @@ describe("poller (integration)", () => {
       .returning();
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Test", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Test", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({ campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi", bodyTemplate: "Body", delayDays: 0 });
     const [contact] = await db.insert(contacts).values({ email: contactEmail, fields: {} }).returning();
     const [enrollment] = await db
       .insert(enrollments)
-      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date() })
+      .values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", currentStep: 1, nextSendAt: new Date() })
       .returning();
     return { mailbox, campaign, contact, enrollment };
   }
@@ -130,11 +131,12 @@ describe("poller (integration)", () => {
       .returning();
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Test", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Test", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({ campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi", bodyTemplate: "Body", delayDays: 0 });
     const [contact] = await db.insert(contacts).values({ email: "someone@example.com", fields: {} }).returning();
-    await db.insert(enrollments).values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date() });
+    await db.insert(enrollments).values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", currentStep: 1, nextSendAt: new Date() });
 
     const result = await runPoll(new Date(), () => fakeImapClient([]));
     expect(result).toEqual({ mailboxesPolled: 0, replied: 0, bounced: 0 });
@@ -150,13 +152,14 @@ describe("poller (integration)", () => {
       .returning();
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Test", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Test", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({ campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi", bodyTemplate: "Body", delayDays: 0 });
     const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: {} }).returning();
     const [enrollment] = await db
       .insert(enrollments)
-      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date() })
+      .values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", currentStep: 1, nextSendAt: new Date() })
       .returning();
 
     const result = await runPoll(
@@ -171,5 +174,59 @@ describe("poller (integration)", () => {
 
     const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
     expect(updatedMailbox.lastHistoryId).toBe("9999");
+  });
+
+  it("pauses a mailbox once its trailing hard-bounce rate crosses 3% over at least 20 sends", async () => {
+    const { mailbox, campaign, enrollment } = await makeActiveEnrollment("bouncy@example.com");
+    // makeActiveEnrollment creates the enrollment but no `messages` row -
+    // the circuit breaker's trailing window is joined through `messages`,
+    // so this enrollment needs one too or it's invisible to that query.
+    await db.insert(messages).values({ enrollmentId: enrollment.id, rfcMessageId: "<helper@test>", status: "sent", sentAt: new Date() });
+    // Build 19 more sent+bounced/completed enrollments against the same
+    // mailbox so the trailing window has 20 samples at exactly 3 bounced
+    // (15%, comfortably over the 3% threshold).
+    for (let i = 0; i < 19; i++) {
+      const [c] = await db.insert(contacts).values({ email: `filler${i}@example.com`, fields: {} }).returning();
+      const status = i < 2 ? "bounced" : "completed"; // 2 more bounced + the DSN below = 3 of 20
+      const [e] = await db
+        .insert(enrollments)
+        .values({ campaignId: campaign.id, contactId: c.id, mailboxId: mailbox.id, status, currentStep: 1 })
+        .returning();
+      await db.insert(messages).values({ enrollmentId: e.id, rfcMessageId: `<${i}@test>`, status: "sent", sentAt: new Date() });
+    }
+
+    const dsnSource = [
+      "From: mailer-daemon@relay.example.com",
+      "Content-Type: multipart/report; report-type=delivery-status",
+      "",
+      "Status: 5.1.1",
+      "Original-Recipient: rfc822;bouncy@example.com",
+    ].join("\n");
+
+    await runPoll(new Date(), () => fakeImapClient([{ from: "mailer-daemon@relay.example.com", source: dsnSource }]));
+
+    const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
+    expect(updatedMailbox.health).toBe("paused");
+
+    const pauseEvents = await db.select().from(events).where(eq(events.type, "mailbox_paused"));
+    expect(pauseEvents).toHaveLength(1);
+    expect(pauseEvents[0].payload).toMatchObject({ mailboxId: mailbox.id, sampleSize: 20 });
+  });
+
+  it("does not pause a mailbox under the 20-sample minimum, even at a high bounce rate", async () => {
+    const { mailbox, contact } = await makeActiveEnrollment("bouncy2@example.com");
+
+    const dsnSource = [
+      "From: mailer-daemon@relay.example.com",
+      "Content-Type: multipart/report; report-type=delivery-status",
+      "",
+      "Status: 5.1.1",
+      `Original-Recipient: rfc822;${contact.email}`,
+    ].join("\n");
+
+    await runPoll(new Date(), () => fakeImapClient([{ from: "mailer-daemon@relay.example.com", source: dsnSource }]));
+
+    const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
+    expect(updatedMailbox.health).toBe("healthy");
   });
 });

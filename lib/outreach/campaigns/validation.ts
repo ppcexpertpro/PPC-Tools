@@ -7,7 +7,7 @@ export const sequenceStepSchema = z.object({
 });
 
 export const createCampaignSchema = z.object({
-  mailboxId: z.uuid(),
+  mailboxIds: z.array(z.uuid()).min(1),
   name: z.string().min(1),
   steps: z.array(sequenceStepSchema).min(1).max(5),
   postalAddress: z.string().min(1),

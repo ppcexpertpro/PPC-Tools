@@ -13,6 +13,8 @@ import { renderTemplate } from "@/lib/outreach/templates/render";
 import { buildThreadHeaders } from "@/lib/outreach/templates/threading";
 import { signUnsubscribeToken, loadUnsubscribeSecret } from "@/lib/outreach/unsubscribe/token";
 import { computeNextSendAt } from "@/lib/outreach/scheduler";
+import { extractDomain } from "@/lib/outreach/scheduler/domainThrottle";
+import { countSentByMailboxToday, countSentToDomainLast24h } from "@/lib/outreach/scheduler/sendCounts";
 
 config({ quiet: true });
 
@@ -80,7 +82,7 @@ export async function runTick(
     })
     .from(enrollments)
     .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
-    .innerJoin(mailboxes, eq(mailboxes.id, campaigns.mailboxId))
+    .innerJoin(mailboxes, eq(mailboxes.id, enrollments.mailboxId))
     .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
     .innerJoin(
       sequenceSteps,
@@ -90,6 +92,7 @@ export async function runTick(
       and(
         eq(enrollments.status, "active"),
         eq(campaigns.status, "active"),
+        eq(mailboxes.health, "healthy"),
         isNotNull(enrollments.nextSendAt),
         lte(enrollments.nextSendAt, now),
       ),
@@ -149,6 +152,24 @@ export async function runTick(
         .from(sequenceSteps)
         .where(and(eq(sequenceSteps.campaignId, row.campaignId), eq(sequenceSteps.stepOrder, row.currentStep + 1)));
 
+      // Counted here, before the send below is recorded, deliberately -
+      // querying through countSentByMailboxToday/countSentToDomainLast24h
+      // (which use the module-level `db`, not the `tx` below) from *inside*
+      // runAtomic would be a transaction-visibility trap: in production
+      // it's a different connection and correctly wouldn't see the
+      // not-yet-committed insert, but in test mode runAtomic's passthrough
+      // makes `tx` literally the same connection as `db`, which *would*
+      // see its own uncommitted write - the same code would silently count
+      // differently between prod and test. Querying before the insert
+      // exists at all sidesteps that entirely; the explicit `+ 1` below
+      // accounts for the send about to be recorded.
+      const [sentByMailboxToday, sentToDomainLast24h] = nextStep
+        ? await Promise.all([
+            countSentByMailboxToday(row.mailboxId, now),
+            countSentToDomainLast24h(row.mailboxId, extractDomain(row.contactEmail), now),
+          ])
+        : [0, 0];
+
       await runAtomic(async (tx) => {
         await tx.insert(messages).values({
           enrollmentId: row.enrollmentId,
@@ -169,8 +190,11 @@ export async function runTick(
               days: row.businessDays,
             },
             mailbox: { dailyCap: row.mailboxDailyCap, rampStartedAt: row.mailboxRampStartedAt },
-            sentByMailboxToday: 0,
-            sentToDomainLast24h: 0,
+            // +1 - sentByMailboxToday/sentToDomainLast24h above were
+            // counted before the send below was recorded, so they don't
+            // include it yet.
+            sentByMailboxToday: sentByMailboxToday + 1,
+            sentToDomainLast24h: sentToDomainLast24h + 1,
             domainThrottleLimit: row.domainThrottleLimit,
           });
           const nextSendAt = decision.allowed ? decision.nextSendAt : decision.retryAt;

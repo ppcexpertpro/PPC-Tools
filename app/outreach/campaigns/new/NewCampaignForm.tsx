@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/shared/Button";
+import { Checkbox } from "@/components/shared/Checkbox";
 import { Textarea } from "@/components/shared/Textarea";
 import { useUIStore } from "@/store/uiStore";
 
@@ -29,13 +30,17 @@ function makeStep(delayDays: number): StepDraft {
 }
 
 export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
-  const [mailboxId, setMailboxId] = useState(mailboxes[0]?.id ?? "");
+  const [mailboxIds, setMailboxIds] = useState<string[]>(mailboxes[0] ? [mailboxes[0].id] : []);
   const [name, setName] = useState("");
   const [steps, setSteps] = useState<StepDraft[]>([makeStep(0)]);
   const [postalAddress, setPostalAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
+
+  const toggleMailbox = (id: string, checked: boolean) => {
+    setMailboxIds((current) => (checked ? [...current, id] : current.filter((existing) => existing !== id)));
+  };
 
   const updateStep = (index: number, patch: Partial<StepDraft>) => {
     setSteps((current) => current.map((step, i) => (i === index ? { ...step, ...patch } : step)));
@@ -58,7 +63,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
       const response = await fetch("/api/outreach/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mailboxId, name, steps, postalAddress }),
+        body: JSON.stringify({ mailboxIds, name, steps, postalAddress }),
       });
       const body = await response.json();
       if (!response.ok) {
@@ -73,16 +78,20 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
 
   return (
     <div className="mt-6 flex flex-col gap-6">
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Sending from
-        <select value={mailboxId} onChange={(e) => setMailboxId(e.target.value)} className={inputClass}>
+      <fieldset className="flex flex-col gap-1">
+        <legend className="text-sm text-ink-muted">Sending from (pick one or more - each new contact is assigned whichever is least loaded)</legend>
+        <div className="mt-2 flex flex-col gap-1 rounded-md border border-border-strong bg-surface p-2">
           {mailboxes.map((mailbox) => (
-            <option key={mailbox.id} value={mailbox.id}>
-              {mailbox.fromName} &lt;{mailbox.fromEmail}&gt;
-            </option>
+            <Checkbox
+              key={mailbox.id}
+              id={`mailbox-${mailbox.id}`}
+              label={`${mailbox.fromName} <${mailbox.fromEmail}>`}
+              checked={mailboxIds.includes(mailbox.id)}
+              onChange={(checked) => toggleMailbox(mailbox.id, checked)}
+            />
           ))}
-        </select>
-      </label>
+        </div>
+      </fieldset>
 
       <label className="flex flex-col gap-1 text-sm text-ink-muted">
         Campaign name
@@ -158,7 +167,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
 
       <Button
         loading={loading}
-        disabled={!mailboxId || !name || !stepsValid || !postalAddress}
+        disabled={mailboxIds.length === 0 || !name || !stepsValid || !postalAddress}
         onClick={handleSubmit}
       >
         Create campaign

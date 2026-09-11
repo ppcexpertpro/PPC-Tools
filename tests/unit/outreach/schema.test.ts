@@ -2,6 +2,7 @@ import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import {
   mailboxes,
   campaigns,
+  campaignMailboxes,
   contacts,
   enrollments,
   messages,
@@ -36,10 +37,11 @@ describe("outreach db schema", () => {
   it("defines the expected campaign columns", () => {
     // subject_template/body_template moved to sequence_steps in Phase 2 -
     // see "defines the expected sequence step columns..." below.
+    // mailbox_id moved to campaign_mailboxes (a pool) in Phase 4 - see
+    // "defines the mailbox pool and sticky enrollment assignment" below.
     expect(columnNames(campaigns)).toEqual(
       expect.arrayContaining([
         "id",
-        "mailbox_id",
         "name",
         "postal_address",
         "status",
@@ -102,5 +104,13 @@ describe("outreach db schema", () => {
   it("defines the Gmail-specific history/thread tracking columns", () => {
     expect(columnNames(mailboxes)).toEqual(expect.arrayContaining(["last_history_id"]));
     expect(columnNames(messages)).toEqual(expect.arrayContaining(["provider_thread_id"]));
+  });
+
+  it("defines the mailbox pool and sticky enrollment assignment", () => {
+    expect(columnNames(campaignMailboxes)).toEqual(
+      expect.arrayContaining(["id", "campaign_id", "mailbox_id", "created_at"]),
+    );
+    expect(columnNames(enrollments)).toEqual(expect.arrayContaining(["mailbox_id"]));
+    expect(columnNames(campaigns)).not.toEqual(expect.arrayContaining(["mailbox_id"]));
   });
 });

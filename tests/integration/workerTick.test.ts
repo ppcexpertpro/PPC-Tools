@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
+import { campaigns, campaignMailboxes, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runTick } from "@/worker/tick";
 import type { Transport } from "@/lib/outreach/transport/types";
@@ -38,7 +38,7 @@ function createFakeGmailTransport(): Transport & { sentMessages: unknown[] } {
 describe("worker tick (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -66,8 +66,9 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Test campaign", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Test campaign", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({
       campaignId: campaign.id,
       stepOrder: 1,
@@ -86,6 +87,7 @@ describe("worker tick (integration)", () => {
       .values({
         campaignId: campaign.id,
         contactId: contact.id,
+        mailboxId: mailbox.id,
         status: "active",
         nextSendAt: new Date(Date.now() - 1000),
       })
@@ -134,8 +136,9 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Test campaign", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Test campaign", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({
       campaignId: campaign.id,
       stepOrder: 1,
@@ -148,8 +151,8 @@ describe("worker tick (integration)", () => {
     const [contactB] = await db.insert(contacts).values({ email: "b@example.com", fields: { first_name: "B" } }).returning();
 
     await db.insert(enrollments).values([
-      { campaignId: campaign.id, contactId: contactA.id, status: "active", nextSendAt: new Date(Date.now() - 2000) },
-      { campaignId: campaign.id, contactId: contactB.id, status: "active", nextSendAt: new Date(Date.now() - 1000) },
+      { campaignId: campaign.id, contactId: contactA.id, mailboxId: mailbox.id, status: "active", nextSendAt: new Date(Date.now() - 2000) },
+      { campaignId: campaign.id, contactId: contactB.id, mailboxId: mailbox.id, status: "active", nextSendAt: new Date(Date.now() - 1000) },
     ]);
 
     const fakeTransport = createFakeTransport();
@@ -180,8 +183,9 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Two-step", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Two-step", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
 
     await db.insert(sequenceSteps).values([
       { campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi {{first_name}}", bodyTemplate: "Step one", delayDays: 0 },
@@ -192,7 +196,7 @@ describe("worker tick (integration)", () => {
 
     const [enrollment] = await db
       .insert(enrollments)
-      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", currentStep: 1, nextSendAt: new Date(Date.now() - 1000) })
+      .values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", currentStep: 1, nextSendAt: new Date(Date.now() - 1000) })
       .returning();
 
     const fakeTransport = createFakeTransport();
@@ -217,8 +221,9 @@ describe("worker tick (integration)", () => {
 
     const [campaign] = await db
       .insert(campaigns)
-      .values({ mailboxId: mailbox.id, name: "Gmail test", postalAddress: "123 Main St", status: "active" })
+      .values({ name: "Gmail test", postalAddress: "123 Main St", status: "active" })
       .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
     await db.insert(sequenceSteps).values({
       campaignId: campaign.id,
       stepOrder: 1,
@@ -230,7 +235,7 @@ describe("worker tick (integration)", () => {
     const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: { first_name: "Alex" } }).returning();
     const [enrollment] = await db
       .insert(enrollments)
-      .values({ campaignId: campaign.id, contactId: contact.id, status: "active", nextSendAt: new Date(Date.now() - 1000) })
+      .values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", nextSendAt: new Date(Date.now() - 1000) })
       .returning();
 
     const fakeSmtp = createFakeTransport();
@@ -244,5 +249,36 @@ describe("worker tick (integration)", () => {
     const sentMessageRows = await db.select().from(messages).where(eq(messages.enrollmentId, enrollment.id));
     expect(sentMessageRows).toHaveLength(1);
     expect(sentMessageRows[0].providerThreadId).toBe("fake-thread-id");
+  });
+
+  it("does not claim an enrollment whose assigned mailbox is paused", async () => {
+    const key = loadEncryptionKey();
+    const credentials = encrypt(JSON.stringify({ host: "localhost", port: 1025, secure: false, user: "", pass: "" }), key);
+
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "smtp", fromName: "Jane", fromEmail: "jane@example.com", encryptedCredentials: credentials, dailyCap: 50, health: "paused" })
+      .returning();
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ name: "Paused mailbox test", postalAddress: "123 Main St", status: "active" })
+      .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
+    await db.insert(sequenceSteps).values({ campaignId: campaign.id, stepOrder: 1, subjectTemplate: "Hi", bodyTemplate: "Body", delayDays: 0 });
+    const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: {} }).returning();
+    await db.insert(enrollments).values({
+      campaignId: campaign.id,
+      contactId: contact.id,
+      mailboxId: mailbox.id,
+      status: "active",
+      nextSendAt: new Date(Date.now() - 1000),
+    });
+
+    const fakeTransport = createFakeTransport();
+    const result = await runTick(new Date(), () => fakeTransport);
+
+    expect(result).toEqual({ attempted: 0, sent: 0, failed: 0 });
+    expect(fakeTransport.sentMessages).toHaveLength(0);
   });
 });

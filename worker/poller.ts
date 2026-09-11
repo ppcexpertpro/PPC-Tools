@@ -1,7 +1,7 @@
 import { config } from "dotenv";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, suppressions } from "@/db/schema";
+import { contacts, enrollments, events, mailboxes, messages, suppressions } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { createImapClient, type ImapClient, type InboxMessage } from "@/lib/outreach/transport/imap";
@@ -9,10 +9,13 @@ import { createGmailPollClient, type GmailPollClient } from "@/lib/outreach/tran
 import type { ImapCredentials, GoogleOAuthCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { isDsnMessage, extractStatusCode, classifyStatusCode } from "@/lib/outreach/poller/bounce";
 import { matchReplies } from "@/lib/outreach/poller/replyMatching";
+import { computeBounceRate } from "@/lib/outreach/deliverability/bounceRate";
 
 config({ quiet: true });
 
 const POLL_INTERVAL_MS = 3 * 60 * 1000;
+const BOUNCE_RATE_THRESHOLD = 0.03;
+const TRAILING_WINDOW = 50;
 
 export interface PollResult {
   mailboxesPolled: number;
@@ -37,8 +40,7 @@ export async function runPoll(
       createdAt: mailboxes.createdAt,
     })
     .from(mailboxes)
-    .innerJoin(campaigns, eq(campaigns.mailboxId, mailboxes.id))
-    .innerJoin(enrollments, and(eq(enrollments.campaignId, campaigns.id), eq(enrollments.status, "active")));
+    .innerJoin(enrollments, and(eq(enrollments.mailboxId, mailboxes.id), eq(enrollments.status, "active")));
 
   let mailboxesPolled = 0;
   let replied = 0;
@@ -85,18 +87,40 @@ export async function runPoll(
     }
 
     await db.update(mailboxes).set(updates).where(eq(mailboxes.id, mailbox.mailboxId));
+    await checkCircuitBreaker(mailbox.mailboxId);
   }
 
   return { mailboxesPolled, replied, bounced };
+}
+
+async function checkCircuitBreaker(mailboxId: string): Promise<void> {
+  const trailing = await db
+    .select({ enrollmentStatus: enrollments.status })
+    .from(messages)
+    .innerJoin(enrollments, eq(enrollments.id, messages.enrollmentId))
+    .where(eq(enrollments.mailboxId, mailboxId))
+    .orderBy(desc(messages.sentAt))
+    .limit(TRAILING_WINDOW);
+
+  const result = computeBounceRate(trailing);
+  if (!result || result.rate < BOUNCE_RATE_THRESHOLD) return;
+
+  const [mailbox] = await db.select({ health: mailboxes.health }).from(mailboxes).where(eq(mailboxes.id, mailboxId));
+  if (mailbox?.health === "paused") return; // already paused - don't log a repeat event every poll cycle
+
+  await db.update(mailboxes).set({ health: "paused" }).where(eq(mailboxes.id, mailboxId));
+  await db.insert(events).values({
+    type: "mailbox_paused",
+    payload: { mailboxId, rate: result.rate, sampleSize: result.sampleSize },
+  });
 }
 
 async function handleReplies(mailboxId: string, repliedFromAddresses: Set<string>): Promise<number> {
   const activeForMailbox = await db
     .select({ enrollmentId: enrollments.id, contactEmail: contacts.email })
     .from(enrollments)
-    .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
     .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
-    .where(and(eq(campaigns.mailboxId, mailboxId), eq(enrollments.status, "active")));
+    .where(and(eq(enrollments.mailboxId, mailboxId), eq(enrollments.status, "active")));
 
   const repliedEnrollmentIds = matchReplies(
     activeForMailbox.map((row) => ({ enrollmentId: row.enrollmentId, contactEmail: row.contactEmail })),
@@ -126,9 +150,8 @@ async function handleBounce(mailboxId: string, dsnSource: string): Promise<numbe
   const activeForMailbox = await db
     .select({ enrollmentId: enrollments.id, contactEmail: contacts.email })
     .from(enrollments)
-    .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
     .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
-    .where(and(eq(campaigns.mailboxId, mailboxId), eq(enrollments.status, "active")));
+    .where(and(eq(enrollments.mailboxId, mailboxId), eq(enrollments.status, "active")));
 
   const lowerSource = dsnSource.toLowerCase();
   let count = 0;

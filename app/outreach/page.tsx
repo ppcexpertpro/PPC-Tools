@@ -15,12 +15,17 @@ export default async function OutreachDashboardPage() {
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-4 py-12 outline-none sm:px-6">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold text-ink">Outreach campaigns</h1>
-        <Link
-          href="/outreach/campaigns/new"
-          className="inline-flex min-h-11 items-center rounded-md bg-signal px-4 text-sm font-medium text-white shadow-raised hover:bg-signal-strong"
-        >
-          New campaign
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/outreach/dashboard" className="text-sm text-signal underline underline-offset-2">
+            Dashboard
+          </Link>
+          <Link
+            href="/outreach/campaigns/new"
+            className="inline-flex min-h-11 items-center rounded-md bg-signal px-4 text-sm font-medium text-white shadow-raised hover:bg-signal-strong"
+          >
+            New campaign
+          </Link>
+        </div>
       </div>
 
       <ul className="mt-8 flex flex-col gap-3">

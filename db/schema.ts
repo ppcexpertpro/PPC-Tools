@@ -27,9 +27,6 @@ export const mailboxes = pgTable("mailboxes", {
 /** status: "draft" | "active" | "paused" | "completed" */
 export const campaigns = pgTable("campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
-  mailboxId: uuid("mailbox_id")
-    .notNull()
-    .references(() => mailboxes.id),
   name: text("name").notNull(),
   postalAddress: text("postal_address").notNull(),
   status: text("status").notNull().default("draft"),
@@ -44,6 +41,25 @@ export const campaigns = pgTable("campaigns", {
   domainThrottleLimit: integer("domain_throttle_limit").notNull().default(3),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** A campaign's mailbox pool (Phase 4+). Campaigns send from an explicit,
+ * admin-picked set of mailboxes rather than one fixed mailbox; each
+ * enrollment is then stickily assigned to one pool member at scheduling
+ * time (see enrollments.mailboxId below). */
+export const campaignMailboxes = pgTable(
+  "campaign_mailboxes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxes.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("campaign_mailboxes_campaign_mailbox_idx").on(table.campaignId, table.mailboxId)],
+);
 
 /** Up to 5 steps per campaign (enforced by the create-campaign Zod schema,
  * not a DB constraint). subject_template/body_template lived directly on
@@ -92,6 +108,11 @@ export const enrollments = pgTable(
     contactId: uuid("contact_id")
       .notNull()
       .references(() => contacts.id),
+    // Sticky assignment from the campaign's pool, set once when the
+    // enrollment is first scheduled (campaign start) - every later step in
+    // its sequence keeps sending from here. Nullable: unset while
+    // "pending" (imported but not yet scheduled).
+    mailboxId: uuid("mailbox_id").references(() => mailboxes.id),
     status: text("status").notNull().default("pending"),
     currentStep: integer("current_step").notNull().default(1),
     // Nullable: unset while "pending" (imported but campaign not yet started).
