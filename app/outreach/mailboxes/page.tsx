@@ -3,6 +3,8 @@ import { db } from "@/db/client";
 import { mailboxes } from "@/db/schema";
 import { MailboxForm } from "./MailboxForm";
 import { ResumeMailboxButton } from "./ResumeMailboxButton";
+import { EditMailboxButton } from "./EditMailboxButton";
+import { DisconnectMailboxButton } from "./DisconnectMailboxButton";
 
 export const metadata = { title: "Mailboxes | PPC Keyword Utilities Suite" };
 
@@ -60,7 +62,11 @@ export default async function MailboxesPage({
                 {mailbox.provider === "gmail_oauth" ? "Google" : "SMTP"} - {mailbox.dailyCap}/day - {mailbox.health}
               </span>
             </div>
-            {mailbox.health === "paused" && <ResumeMailboxButton mailboxId={mailbox.id} />}
+            <div className="flex flex-none gap-2">
+              {mailbox.health === "paused" && <ResumeMailboxButton mailboxId={mailbox.id} />}
+              <EditMailboxButton mailboxId={mailbox.id} fromName={mailbox.fromName} dailyCap={mailbox.dailyCap} />
+              <DisconnectMailboxButton mailboxId={mailbox.id} fromEmail={mailbox.fromEmail} />
+            </div>
           </li>
         ))}
       </ul>
@@ -68,6 +74,12 @@ export default async function MailboxesPage({
       <div className="mt-8 flex flex-col gap-6 rounded-2xl border border-border bg-surface p-6">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">Connect a mailbox</h2>
+          {/* Deliberately a plain <a>, not next/link's <Link> - this route
+              sets a CSRF state cookie and issues a redirect to Google as a
+              real side effect. <Link>'s default viewport/hover prefetch
+              would trigger that side effect just from this button being
+              on screen. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/outreach/mailboxes/google/start"
             className="mt-3 inline-flex min-h-11 items-center rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-ink shadow-raised hover:bg-paper"

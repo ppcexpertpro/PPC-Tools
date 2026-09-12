@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { contacts, enrollments, events, mailboxes, messages, suppressions } from "@/db/schema";
+import { contacts, enrollments, events, mailboxes, messages, suppressions, workerHeartbeats } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { createImapClient, type ImapClient, type InboxMessage } from "@/lib/outreach/transport/imap";
@@ -90,7 +90,13 @@ export async function runPoll(
     await checkCircuitBreaker(mailbox.mailboxId);
   }
 
-  return { mailboxesPolled, replied, bounced };
+  const result = { mailboxesPolled, replied, bounced };
+  await db
+    .insert(workerHeartbeats)
+    .values({ process: "poller", lastRunAt: now, lastResult: result })
+    .onConflictDoUpdate({ target: workerHeartbeats.process, set: { lastRunAt: now, lastResult: result } });
+
+  return result;
 }
 
 async function checkCircuitBreaker(mailboxId: string): Promise<void> {

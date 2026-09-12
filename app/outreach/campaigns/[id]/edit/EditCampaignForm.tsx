@@ -19,27 +19,35 @@ interface StepDraft {
   delayDays: number;
 }
 
+interface CampaignDraft {
+  id: string;
+  name: string;
+  postalAddress: string;
+  businessDays: number[];
+  businessHoursStart: number;
+  businessHoursEnd: number;
+  baseIntervalSeconds: number;
+  domainThrottleLimit: number;
+  poolMailboxIds: string[];
+  steps: StepDraft[];
+}
+
 const MAX_STEPS = 5;
-const DEFAULT_BODY = "Hi {{first_name}},\n\n\n\nUnsubscribe: {{unsubscribe_token}}";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const inputClass =
   "min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
 
-function makeStep(delayDays: number): StepDraft {
-  return { subjectTemplate: "", bodyTemplate: DEFAULT_BODY, delayDays };
-}
-
-export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
-  const [mailboxIds, setMailboxIds] = useState<string[]>(mailboxes[0] ? [mailboxes[0].id] : []);
-  const [name, setName] = useState("");
-  const [steps, setSteps] = useState<StepDraft[]>([makeStep(0)]);
-  const [postalAddress, setPostalAddress] = useState("");
-  const [businessDays, setBusinessDays] = useState<number[]>([2, 3, 4]);
-  const [businessHoursStart, setBusinessHoursStart] = useState(9);
-  const [businessHoursEnd, setBusinessHoursEnd] = useState(16);
-  const [baseIntervalSeconds, setBaseIntervalSeconds] = useState(60);
-  const [domainThrottleLimit, setDomainThrottleLimit] = useState(3);
+export function EditCampaignForm({ mailboxes, campaign }: { mailboxes: MailboxOption[]; campaign: CampaignDraft }) {
+  const [mailboxIds, setMailboxIds] = useState<string[]>(campaign.poolMailboxIds);
+  const [name, setName] = useState(campaign.name);
+  const [steps, setSteps] = useState<StepDraft[]>(campaign.steps);
+  const [postalAddress, setPostalAddress] = useState(campaign.postalAddress);
+  const [businessDays, setBusinessDays] = useState<number[]>(campaign.businessDays);
+  const [businessHoursStart, setBusinessHoursStart] = useState(campaign.businessHoursStart);
+  const [businessHoursEnd, setBusinessHoursEnd] = useState(campaign.businessHoursEnd);
+  const [baseIntervalSeconds, setBaseIntervalSeconds] = useState(campaign.baseIntervalSeconds);
+  const [domainThrottleLimit, setDomainThrottleLimit] = useState(campaign.domainThrottleLimit);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const showToast = useUIStore((state) => state.showToast);
@@ -58,7 +66,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
 
   const addStep = () => {
     if (steps.length >= MAX_STEPS) return;
-    setSteps((current) => [...current, makeStep(3)]);
+    setSteps((current) => [...current, { subjectTemplate: "", bodyTemplate: "", delayDays: 3 }]);
   };
 
   const removeStep = (index: number) => {
@@ -70,8 +78,8 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/outreach/campaigns", {
-        method: "POST",
+      const response = await fetch(`/api/outreach/campaigns/${campaign.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mailboxIds,
@@ -85,12 +93,12 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
           domainThrottleLimit,
         }),
       });
-      const body = await response.json();
       if (!response.ok) {
-        showToast("error", "Could not create the campaign. Check every field is filled in.");
+        showToast("error", "Could not save changes. Check every field is filled in.");
         return;
       }
-      router.push(`/outreach/campaigns/${body.campaign.id}`);
+      showToast("success", "Campaign updated.");
+      router.push(`/outreach/campaigns/${campaign.id}`);
     } finally {
       setLoading(false);
     }
@@ -99,7 +107,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
   return (
     <div className="mt-6 flex flex-col gap-6">
       <fieldset className="flex flex-col gap-1">
-        <legend className="text-sm text-ink-muted">Sending from (pick one or more - each new contact is assigned whichever is least loaded)</legend>
+        <legend className="text-sm text-ink-muted">Sending from</legend>
         <div className="mt-2 flex flex-col gap-1 rounded-md border border-border-strong bg-surface p-2">
           {mailboxes.map((mailbox) => (
             <Checkbox
@@ -122,12 +130,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
         {steps.map((step, index) => (
           <div key={index} className="rounded-2xl border border-border bg-surface p-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-sm font-semibold text-ink">
-                Step {index + 1}
-                {index > 0 && (
-                  <span className="ml-2 font-normal text-ink-faint">(sent this many days after step {index})</span>
-                )}
-              </h3>
+              <h3 className="font-display text-sm font-semibold text-ink">Step {index + 1}</h3>
               {steps.length > 1 && (
                 <button
                   type="button"
@@ -138,7 +141,6 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
                 </button>
               )}
             </div>
-
             <div className="mt-3 flex flex-col gap-3">
               {index > 0 && (
                 <label className="flex flex-col gap-1 text-sm text-ink-muted">
@@ -157,7 +159,6 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
                 <input
                   value={step.subjectTemplate}
                   onChange={(e) => updateStep(index, { subjectTemplate: e.target.value })}
-                  placeholder="Quick question about {{company}}"
                   className={inputClass}
                 />
               </label>
@@ -172,7 +173,6 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
             </div>
           </div>
         ))}
-
         {steps.length < MAX_STEPS && (
           <Button variant="secondary" onClick={addStep}>
             Add follow-up step
@@ -181,7 +181,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
       </div>
 
       <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Postal address (required by CAN-SPAM)
+        Postal address
         <input value={postalAddress} onChange={(e) => setPostalAddress(e.target.value)} className={inputClass} />
       </label>
 
@@ -205,45 +205,19 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-1 text-sm text-ink-muted">
               Business hours start
-              <input
-                type="number"
-                min={0}
-                max={23}
-                value={businessHoursStart}
-                onChange={(e) => setBusinessHoursStart(Number(e.target.value))}
-                className={inputClass}
-              />
+              <input type="number" min={0} max={23} value={businessHoursStart} onChange={(e) => setBusinessHoursStart(Number(e.target.value))} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-muted">
               Business hours end
-              <input
-                type="number"
-                min={1}
-                max={24}
-                value={businessHoursEnd}
-                onChange={(e) => setBusinessHoursEnd(Number(e.target.value))}
-                className={inputClass}
-              />
+              <input type="number" min={1} max={24} value={businessHoursEnd} onChange={(e) => setBusinessHoursEnd(Number(e.target.value))} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-muted">
               Base interval (seconds)
-              <input
-                type="number"
-                min={1}
-                value={baseIntervalSeconds}
-                onChange={(e) => setBaseIntervalSeconds(Number(e.target.value))}
-                className={inputClass}
-              />
+              <input type="number" min={1} value={baseIntervalSeconds} onChange={(e) => setBaseIntervalSeconds(Number(e.target.value))} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink-muted">
               Per-domain daily limit
-              <input
-                type="number"
-                min={1}
-                value={domainThrottleLimit}
-                onChange={(e) => setDomainThrottleLimit(Number(e.target.value))}
-                className={inputClass}
-              />
+              <input type="number" min={1} value={domainThrottleLimit} onChange={(e) => setDomainThrottleLimit(Number(e.target.value))} className={inputClass} />
             </label>
           </div>
         </div>
@@ -254,7 +228,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
         disabled={mailboxIds.length === 0 || !name || !stepsValid || !postalAddress || businessDays.length === 0}
         onClick={handleSubmit}
       >
-        Create campaign
+        Save changes
       </Button>
     </div>
   );

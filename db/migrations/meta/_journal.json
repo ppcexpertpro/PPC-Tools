@@ -36,6 +36,20 @@
       "when": 1789138876571,
       "tag": "0004_adorable_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789167891769,
+      "tag": "0005_dry_nitro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789168945772,
+      "tag": "0006_material_scarecrow",
+      "breakpoints": true
     }
   ]
 }

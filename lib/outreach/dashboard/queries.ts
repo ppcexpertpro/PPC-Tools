@@ -1,6 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { campaigns, enrollments, mailboxes, messages } from "@/db/schema";
+import { campaigns, enrollments, mailboxes, messages, workerHeartbeats } from "@/db/schema";
 import { computeBounceRate, type BounceRateResult } from "@/lib/outreach/deliverability/bounceRate";
 import { countSentByMailboxToday } from "@/lib/outreach/scheduler/sendCounts";
 
@@ -94,4 +94,45 @@ export async function getCampaignPerformanceRows(): Promise<CampaignPerformanceR
       replyRate: denominator > 0 ? replied / denominator : null,
     };
   });
+}
+
+// Mirrors worker/tick.ts's TICK_INTERVAL_MS and worker/poller.ts's
+// POLL_INTERVAL_MS - duplicated as plain constants rather than imported,
+// since importing those modules here would pull their heavy dependencies
+// (nodemailer, googleapis, imapflow) into the web app's bundle.
+const WORKER_INTERVAL_MS = 15_000;
+const POLLER_INTERVAL_MS = 3 * 60 * 1000;
+const UNHEALTHY_MULTIPLIER = 3;
+
+export interface HeartbeatStatus {
+  process: string;
+  lastRunAt: Date | null;
+  healthy: boolean;
+  secondsAgo: number | null;
+}
+
+export function describeHeartbeat(
+  row: { process: string; lastRunAt: Date } | undefined,
+  now: Date,
+  expectedIntervalMs: number,
+  processName: string,
+): HeartbeatStatus {
+  if (!row) return { process: processName, lastRunAt: null, healthy: false, secondsAgo: null };
+  const ageMs = now.getTime() - row.lastRunAt.getTime();
+  return {
+    process: processName,
+    lastRunAt: row.lastRunAt,
+    healthy: ageMs <= expectedIntervalMs * UNHEALTHY_MULTIPLIER,
+    secondsAgo: Math.round(ageMs / 1000),
+  };
+}
+
+export async function getWorkerHeartbeats(now: Date = new Date()): Promise<{ worker: HeartbeatStatus; poller: HeartbeatStatus }> {
+  const rows = await db.select().from(workerHeartbeats);
+  const byProcess = new Map(rows.map((r) => [r.process, r]));
+
+  return {
+    worker: describeHeartbeat(byProcess.get("worker"), now, WORKER_INTERVAL_MS, "worker"),
+    poller: describeHeartbeat(byProcess.get("poller"), now, POLLER_INTERVAL_MS, "poller"),
+  };
 }

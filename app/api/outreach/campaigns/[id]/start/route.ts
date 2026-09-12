@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, runAtomic } from "@/db/client";
-import { campaigns, campaignMailboxes, mailboxes, contacts, enrollments, sequenceSteps } from "@/db/schema";
-import { runPoolPreflight, summarizePoolDomains } from "@/lib/outreach/preflight/pool";
-import { scheduleCampaignStart, type PoolMailbox } from "@/lib/outreach/campaigns/start";
-import { countSentByMailboxToday } from "@/lib/outreach/scheduler/sendCounts";
+import { campaigns, enrollments } from "@/db/schema";
+import { planCampaignEnrollment } from "@/lib/outreach/campaigns/enrollNewContacts";
 
 export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/campaigns/[id]/start">) {
   const { id } = await ctx.params;
@@ -15,97 +13,23 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
     return NextResponse.json({ error: `Campaign is already ${campaign.status}` }, { status: 409 });
   }
 
-  const pool = await db
-    .select({
-      id: mailboxes.id,
-      provider: mailboxes.provider,
-      fromEmail: mailboxes.fromEmail,
-      dailyCap: mailboxes.dailyCap,
-      rampStartedAt: mailboxes.rampStartedAt,
-      health: mailboxes.health,
-    })
-    .from(campaignMailboxes)
-    .innerJoin(mailboxes, eq(mailboxes.id, campaignMailboxes.mailboxId))
-    .where(eq(campaignMailboxes.campaignId, id));
+  const plan = await planCampaignEnrollment(campaign);
 
-  const healthyPool = pool.filter((m) => m.health === "healthy");
-  if (healthyPool.length === 0) {
+  if (plan.skippedReason === "no_healthy_mailboxes") {
     return NextResponse.json({ error: "No healthy mailboxes in this campaign's pool" }, { status: 422 });
   }
-
-  const steps = await db
-    .select({ subjectTemplate: sequenceSteps.subjectTemplate, bodyTemplate: sequenceSteps.bodyTemplate })
-    .from(sequenceSteps)
-    .where(eq(sequenceSteps.campaignId, id))
-    .orderBy(asc(sequenceSteps.stepOrder));
-
-  if (steps.length === 0) {
+  if (plan.skippedReason === "no_sequence_steps") {
     return NextResponse.json({ error: "Campaign has no sequence steps" }, { status: 422 });
   }
-
-  const pending = await db
-    .select({
-      enrollmentId: enrollments.id,
-      contactId: contacts.id,
-      email: contacts.email,
-      fields: contacts.fields,
-      timezone: contacts.timezone,
-    })
-    .from(enrollments)
-    .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
-    .where(and(eq(enrollments.campaignId, id), eq(enrollments.status, "pending")));
-
-  if (pending.length === 0) {
+  if (plan.skippedReason === "no_pending_contacts") {
     return NextResponse.json({ error: "No pending contacts to enroll" }, { status: 422 });
   }
-
-  const { senderDomains, trustedDomains } = summarizePoolDomains(healthyPool);
-  const preflight = await runPoolPreflight({
-    senderDomains,
-    trustedDomains,
-    dkimSelector: "default",
-    postalAddress: campaign.postalAddress,
-    templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
-    // unsubscribe_token is synthesized by the worker at send time (see
-    // worker/tick.ts) - it's never stored on a contact, so a placeholder
-    // is supplied here purely so the merge-field check doesn't flag every
-    // contact as missing a field that will always resolve by send time.
-    contacts: pending.map((p) => ({
-      id: p.contactId,
-      email: p.email,
-      fields: { ...p.fields, unsubscribe_token: "placeholder" },
-    })),
-  });
-
-  if (!preflight.pass) {
-    return NextResponse.json({ error: "Preflight checks failed", preflight }, { status: 422 });
+  if (plan.skippedReason === "preflight_failed") {
+    return NextResponse.json({ error: "Preflight checks failed", preflight: plan.preflight }, { status: 422 });
   }
 
-  const now = new Date();
-  const mailboxesForScheduling: PoolMailbox[] = await Promise.all(
-    healthyPool.map(async (m) => ({
-      id: m.id,
-      dailyCap: m.dailyCap,
-      rampStartedAt: m.rampStartedAt,
-      alreadySentToday: await countSentByMailboxToday(m.id, now),
-    })),
-  );
-
-  const scheduled = scheduleCampaignStart({
-    now,
-    baseIntervalSeconds: campaign.baseIntervalSeconds,
-    businessHours: {
-      startHour: campaign.businessHoursStart,
-      endHour: campaign.businessHoursEnd,
-      days: campaign.businessDays,
-    },
-    mailboxes: mailboxesForScheduling,
-    domainThrottleLimit: campaign.domainThrottleLimit,
-    enrollments: pending.map((p) => ({ id: p.enrollmentId, email: p.email, timezone: p.timezone })),
-  });
-
   await runAtomic(async (tx) => {
-    for (const item of scheduled) {
+    for (const item of plan.scheduled) {
       await tx
         .update(enrollments)
         .set({ status: "active", mailboxId: item.mailboxId, nextSendAt: item.nextSendAt })
@@ -114,5 +38,5 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/outreach/c
     await tx.update(campaigns).set({ status: "active" }).where(eq(campaigns.id, id));
   });
 
-  return NextResponse.json({ started: true, enrolled: scheduled.length });
+  return NextResponse.json({ started: true, enrolled: plan.scheduled.length });
 }

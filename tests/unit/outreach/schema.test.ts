@@ -11,6 +11,7 @@ import {
   users,
   sessions,
   sequenceSteps,
+  workerHeartbeats,
 } from "@/db/schema";
 
 function columnNames(table: PgTable) {
@@ -112,5 +113,11 @@ describe("outreach db schema", () => {
     );
     expect(columnNames(enrollments)).toEqual(expect.arrayContaining(["mailbox_id"]));
     expect(columnNames(campaigns)).not.toEqual(expect.arrayContaining(["mailbox_id"]));
+  });
+
+  it("defines the worker/poller heartbeat table", () => {
+    expect(columnNames(workerHeartbeats)).toEqual(
+      expect.arrayContaining(["process", "last_run_at", "last_result"]),
+    );
   });
 });

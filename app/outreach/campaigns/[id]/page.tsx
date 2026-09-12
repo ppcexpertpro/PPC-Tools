@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { campaigns, enrollments, sequenceSteps } from "@/db/schema";
 import { CampaignStartButton } from "./CampaignStartButton";
+import { CampaignPauseResumeButton } from "./CampaignPauseResumeButton";
 import { ImportContactsForm } from "./ImportContactsForm";
 import { StatusPoller } from "./StatusPoller";
 
@@ -35,7 +37,17 @@ export default async function CampaignStatusPage({ params }: { params: Promise<{
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-12 outline-none sm:px-6">
       <StatusPoller active={campaign.status === "active"} />
       <p className="font-mono text-xs uppercase tracking-wide text-ink-faint">{campaign.status}</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-ink">{campaign.name}</h1>
+      <div className="mt-2 flex items-center justify-between">
+        <h1 className="font-display text-3xl font-bold text-ink">{campaign.name}</h1>
+        {campaign.status === "draft" && (
+          <Link href={`/outreach/campaigns/${campaign.id}/edit`} className="text-sm text-signal underline underline-offset-2">
+            Edit
+          </Link>
+        )}
+        {(campaign.status === "active" || campaign.status === "paused") && (
+          <CampaignPauseResumeButton campaignId={campaign.id} status={campaign.status} />
+        )}
+      </div>
 
       <ol className="mt-6 flex flex-col gap-2">
         {steps.map((step) => (
@@ -60,6 +72,13 @@ export default async function CampaignStatusPage({ params }: { params: Promise<{
           <p className="col-span-full text-sm text-ink-muted">No contacts imported yet.</p>
         )}
       </dl>
+
+      <Link
+        href={`/outreach/campaigns/${campaign.id}/enrollments`}
+        className="mt-4 inline-block text-sm text-signal underline underline-offset-2"
+      >
+        View contacts
+      </Link>
 
       {campaign.status === "draft" && (
         <div className="mt-10 flex flex-col gap-8">

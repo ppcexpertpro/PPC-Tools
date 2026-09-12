@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, campaignMailboxes, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
+import { campaigns, campaignMailboxes, contacts, enrollments, mailboxes, messages, events, sequenceSteps, workerHeartbeats } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runTick } from "@/worker/tick";
 import type { Transport } from "@/lib/outreach/transport/types";
@@ -38,12 +38,23 @@ function createFakeGmailTransport(): Transport & { sentMessages: unknown[] } {
 describe("worker tick (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions, worker_heartbeats RESTART IDENTITY CASCADE`,
     );
   });
 
   afterAll(async () => {
     await queryClient.end({ timeout: 5 });
+  });
+
+  it("records a heartbeat after ticking", async () => {
+    const fakeTransport = createFakeTransport();
+    const before = new Date();
+    await runTick(new Date(), () => fakeTransport);
+
+    const [heartbeat] = await db.select().from(workerHeartbeats).where(eq(workerHeartbeats.process, "worker"));
+    expect(heartbeat).toBeDefined();
+    expect(heartbeat.lastRunAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(heartbeat.lastResult).toMatchObject({ attempted: 0, sent: 0, failed: 0 });
   });
 
   it("sends a due enrollment and marks it completed", async () => {

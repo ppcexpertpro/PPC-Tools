@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, campaignMailboxes, contacts, enrollments, events, mailboxes, messages, sequenceSteps, suppressions } from "@/db/schema";
+import { campaigns, campaignMailboxes, contacts, enrollments, events, mailboxes, messages, sequenceSteps, suppressions, workerHeartbeats } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runPoll } from "@/worker/poller";
 import type { ImapClient } from "@/lib/outreach/transport/imap";
@@ -27,7 +27,7 @@ function fakeGmailPollClient(messages: { from: string; source: string }[]): Gmai
 describe("poller (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions, worker_heartbeats RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -228,5 +228,15 @@ describe("poller (integration)", () => {
 
     const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
     expect(updatedMailbox.health).toBe("healthy");
+  });
+
+  it("records a heartbeat after polling, even with nothing to poll", async () => {
+    const before = new Date();
+    await runPoll(new Date(), () => fakeImapClient([]));
+
+    const [heartbeat] = await db.select().from(workerHeartbeats).where(eq(workerHeartbeats.process, "poller"));
+    expect(heartbeat).toBeDefined();
+    expect(heartbeat.lastRunAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(heartbeat.lastResult).toMatchObject({ mailboxesPolled: 0, replied: 0, bounced: 0 });
   });
 });

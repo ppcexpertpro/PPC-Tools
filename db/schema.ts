@@ -55,7 +55,11 @@ export const campaignMailboxes = pgTable(
       .references(() => campaigns.id),
     mailboxId: uuid("mailbox_id")
       .notNull()
-      .references(() => mailboxes.id),
+      // A disconnected mailbox drops out of every pool it was ever part of
+      // - a pool-membership row has no meaning once the mailbox side is
+      // gone, unlike enrollments.mailboxId below, which is kept as
+      // historical record.
+      .references(() => mailboxes.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("campaign_mailboxes_campaign_mailbox_idx").on(table.campaignId, table.mailboxId)],
@@ -111,8 +115,11 @@ export const enrollments = pgTable(
     // Sticky assignment from the campaign's pool, set once when the
     // enrollment is first scheduled (campaign start) - every later step in
     // its sequence keeps sending from here. Nullable: unset while
-    // "pending" (imported but not yet scheduled).
-    mailboxId: uuid("mailbox_id").references(() => mailboxes.id),
+    // "pending" (imported but not yet scheduled), and set back to null if
+    // the mailbox is later disconnected - the enrollment itself (and its
+    // messages) stays as historical record, it just loses the "sent from"
+    // attribution.
+    mailboxId: uuid("mailbox_id").references(() => mailboxes.id, { onDelete: "set null" }),
     status: text("status").notNull().default("pending"),
     currentStep: integer("current_step").notNull().default(1),
     // Nullable: unset while "pending" (imported but campaign not yet started).
@@ -179,3 +186,13 @@ export const sessions = pgTable(
   },
   (table) => [uniqueIndex("sessions_token_hash_idx").on(table.tokenHash)],
 );
+
+/** Exactly two rows ever exist ("worker", "poller") - a text primary key
+ * instead of a uuid, upserted every tick/poll cycle by the process itself.
+ * `lastResult` is that cycle's already-computed TickResult/PollResult
+ * object, stored as-is for the dashboard to display. */
+export const workerHeartbeats = pgTable("worker_heartbeats", {
+  process: text("process").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+  lastResult: jsonb("last_result").notNull().default({}).$type<Record<string, unknown>>(),
+});

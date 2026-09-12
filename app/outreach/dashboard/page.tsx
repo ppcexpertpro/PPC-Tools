@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMailboxHealthRows, getCampaignPerformanceRows } from "@/lib/outreach/dashboard/queries";
+import { getMailboxHealthRows, getCampaignPerformanceRows, getWorkerHeartbeats } from "@/lib/outreach/dashboard/queries";
 
 export const metadata = { title: "Dashboard | PPC Keyword Utilities Suite" };
 
@@ -10,14 +10,42 @@ function formatPercent(value: number | null): string {
   return value === null ? "-" : `${(value * 100).toFixed(1)}%`;
 }
 
+function formatAge(secondsAgo: number | null): string {
+  if (secondsAgo === null) return "never run";
+  if (secondsAgo < 60) return `${secondsAgo}s ago`;
+  return `${Math.round(secondsAgo / 60)}m ago`;
+}
+
 export default async function DashboardPage() {
-  const [mailboxRows, campaignRows] = await Promise.all([getMailboxHealthRows(), getCampaignPerformanceRows()]);
+  const [mailboxRows, campaignRows, heartbeats] = await Promise.all([
+    getMailboxHealthRows(),
+    getCampaignPerformanceRows(),
+    getWorkerHeartbeats(),
+  ]);
 
   return (
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-12 outline-none sm:px-6">
       <h1 className="font-display text-3xl font-bold text-ink">Deliverability dashboard</h1>
 
       <section className="mt-8">
+        <h2 className="font-display text-lg font-semibold text-ink">Process health</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[heartbeats.worker, heartbeats.poller].map((status) => (
+            <div key={status.process} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+              <span
+                className={`h-2.5 w-2.5 flex-none rounded-full ${status.healthy ? "bg-signal" : "bg-danger"}`}
+                aria-hidden="true"
+              />
+              <div>
+                <p className="font-medium capitalize text-ink">{status.process}</p>
+                <p className="font-mono text-xs text-ink-faint">{formatAge(status.secondsAgo)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
         <h2 className="font-display text-lg font-semibold text-ink">Mailbox health</h2>
         <div className="mt-3 overflow-x-auto rounded-2xl border border-border bg-surface">
           <table className="w-full text-left text-sm">

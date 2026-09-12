@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { and, asc, eq, isNotNull, lte } from "drizzle-orm";
 import { db, runAtomic } from "@/db/client";
-import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps } from "@/db/schema";
+import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps, workerHeartbeats } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { createSmtpTransport } from "@/lib/outreach/transport/smtp";
@@ -226,7 +226,13 @@ export async function runTick(
     }
   }
 
-  return { attempted, sent, failed };
+  const result = { attempted, sent, failed };
+  await db
+    .insert(workerHeartbeats)
+    .values({ process: "worker", lastRunAt: now, lastResult: result })
+    .onConflictDoUpdate({ target: workerHeartbeats.process, set: { lastRunAt: now, lastResult: result } });
+
+  return result;
 }
 
 if (require.main === module) {
