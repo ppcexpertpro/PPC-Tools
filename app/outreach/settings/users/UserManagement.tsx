@@ -96,10 +96,11 @@ export function UserManagement({ users, currentUserId }: { users: UserRow[]; cur
     <div className="flex flex-col gap-8">
       <ul className="flex flex-col gap-2">
         {users.map((user) => (
-          <li
-            key={user.id}
-            className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm"
-          >
+          <li key={user.id} className="blueprint flex items-center justify-between p-4 text-sm">
+            <i className="corner tl" aria-hidden="true" />
+            <i className="corner tr" aria-hidden="true" />
+            <i className="corner bl" aria-hidden="true" />
+            <i className="corner br" aria-hidden="true" />
             <div>
               <span className="font-medium text-ink">{user.email}</span>{" "}
               <span className="font-mono text-xs text-ink-faint">{user.role}</span>
@@ -117,7 +118,11 @@ export function UserManagement({ users, currentUserId }: { users: UserRow[]; cur
         ))}
       </ul>
 
-      <div className="rounded-2xl border border-border bg-surface p-6">
+      <div className="blueprint p-6">
+        <i className="corner tl" aria-hidden="true" />
+        <i className="corner tr" aria-hidden="true" />
+        <i className="corner bl" aria-hidden="true" />
+        <i className="corner br" aria-hidden="true" />
         <h2 className="font-display text-lg font-semibold text-ink">Add a user</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field id="new-user-email" label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />

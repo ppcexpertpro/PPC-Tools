@@ -50,6 +50,20 @@
       "when": 1789168945772,
       "tag": "0006_material_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789395121364,
+      "tag": "0007_low_marvex",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789396887296,
+      "tag": "0008_dapper_luckman",
+      "breakpoints": true
     }
   ]
 }

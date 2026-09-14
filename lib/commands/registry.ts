@@ -13,7 +13,7 @@ export interface CommandItem {
 /*
  * Every destination in the suite, in the order they're offered on an empty
  * query. This is the whole navigation model for the outreach console: the
- * section has nine pages and a conventional nav bar that lists nine links is
+ * section has ten pages and a conventional nav bar that lists ten links is
  * how you end up hiding the two nobody remembers exist. Ordered by how often
  * an operator actually reaches for them, not by URL structure.
  */
@@ -33,6 +33,14 @@ export const COMMANDS: CommandItem[] = [
     hint: "Build a sequence and schedule",
     keywords: "create add compose sequence",
     href: "/outreach/campaigns/new",
+  },
+  {
+    id: "outreach-replies",
+    label: "Replies",
+    group: "Outreach",
+    hint: "Every reply, across every campaign",
+    keywords: "inbox thread conversation unsubscribe reply",
+    href: "/outreach/replies",
   },
   {
     id: "outreach-dashboard",

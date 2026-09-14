@@ -1,6 +1,6 @@
 import { sql, eq } from "drizzle-orm";
 import { db, queryClient } from "@/db/client";
-import { campaigns, campaignMailboxes, contacts, enrollments, events, mailboxes, messages, sequenceSteps, suppressions, workerHeartbeats } from "@/db/schema";
+import { campaigns, campaignMailboxes, contacts, enrollments, events, mailboxes, messages, replies, sequenceSteps, suppressions, workerHeartbeats } from "@/db/schema";
 import { encrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { runPoll } from "@/worker/poller";
 import type { ImapClient } from "@/lib/outreach/transport/imap";
@@ -27,7 +27,7 @@ function fakeGmailPollClient(messages: { from: string; source: string }[]): Gmai
 describe("poller (integration)", () => {
   beforeEach(async () => {
     await db.execute(
-      sql`TRUNCATE TABLE messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions, worker_heartbeats RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE replies, messages, events, enrollments, sequence_steps, campaign_mailboxes, campaigns, mailboxes, contacts, suppressions, worker_heartbeats RESTART IDENTITY CASCADE`,
     );
   });
 
@@ -73,6 +73,14 @@ describe("poller (integration)", () => {
     const [updated] = await db.select().from(enrollments).where(eq(enrollments.id, enrollment.id));
     expect(updated.status).toBe("replied");
     expect(updated.nextSendAt).toBeNull();
+
+    const [reply] = await db.select().from(replies).where(eq(replies.enrollmentId, enrollment.id));
+    expect(reply).toBeDefined();
+    expect(reply.subject).toBe("Re: hi");
+    expect(reply.snippet).toBe("Sure, let's talk.");
+    expect(reply.fromAddress).toBe("recipient@example.com");
+    expect(reply.status).toBe("unhandled");
+    expect(reply.unsubscribeRequested).toBe(false);
   });
 
   it("suppresses and marks bounced on a hard-bounce DSN mentioning the contact", async () => {
@@ -95,6 +103,8 @@ describe("poller (integration)", () => {
     expect(updated.status).toBe("bounced");
     const suppressed = await db.select().from(suppressions).where(eq(suppressions.email, contact.email));
     expect(suppressed).toHaveLength(1);
+    const reply = await db.select().from(replies).where(eq(replies.enrollmentId, enrollment.id));
+    expect(reply).toHaveLength(0);
   });
 
   it("ignores a soft-bounce DSN (4.x.x) - no status change, no suppression", async () => {
@@ -171,6 +181,10 @@ describe("poller (integration)", () => {
     expect(result).toEqual({ mailboxesPolled: 1, replied: 1, bounced: 0 });
     const [updated] = await db.select().from(enrollments).where(eq(enrollments.id, enrollment.id));
     expect(updated.status).toBe("replied");
+
+    const [reply] = await db.select().from(replies).where(eq(replies.enrollmentId, enrollment.id));
+    expect(reply).toBeDefined();
+    expect(reply.mailboxId).toBe(mailbox.id);
 
     const [updatedMailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, mailbox.id));
     expect(updatedMailbox.lastHistoryId).toBe("9999");

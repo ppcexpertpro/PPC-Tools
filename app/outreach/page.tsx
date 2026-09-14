@@ -1,25 +1,12 @@
 import Link from "next/link";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { SpotlightLink } from "@/components/shared/SpotlightLink";
 import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { CampaignsTable } from "@/components/outreach/CampaignsTable";
 import { getCampaignPerformanceRows } from "@/lib/outreach/dashboard/queries";
 
 export const metadata = { title: "Outreach | PPC Keyword Utilities Suite" };
 
 // See app/outreach/mailboxes/page.tsx for why this is required.
 export const dynamic = "force-dynamic";
-
-function Metric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <dt className="font-mono text-[0.625rem] uppercase tracking-wider text-ink-faint">{label}</dt>
-      <dd data-numeric className="mt-0.5 font-display text-lg font-semibold text-ink">
-        {value}
-      </dd>
-    </div>
-  );
-}
 
 export default async function OutreachCampaignsPage() {
   // The dashboard's own query, reused rather than re-counting here: a campaign
@@ -42,38 +29,7 @@ export default async function OutreachCampaignsPage() {
         }
       />
 
-      {rows.length === 0 ? (
-        <EmptyState
-          title="No campaigns yet"
-          description="Connect a mailbox first, then build a sequence. Nothing sends until you start a campaign explicitly."
-        />
-      ) : (
-        <ul className="animate-stagger flex flex-col gap-3">
-          {rows.map((campaign, index) => (
-            <li key={campaign.id} style={{ "--index": index } as React.CSSProperties}>
-              <SpotlightLink href={`/outreach/campaigns/${campaign.id}`} className="p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">
-                    {campaign.name}
-                  </p>
-                  <StatusBadge status={campaign.status} />
-                </div>
-
-                <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-5">
-                  <Metric label="Enrolled" value={campaign.enrolled} />
-                  <Metric label="In flight" value={campaign.active} />
-                  <Metric label="Replied" value={campaign.replied} />
-                  <Metric label="Bounced" value={campaign.bounced} />
-                  <Metric
-                    label="Reply rate"
-                    value={campaign.replyRate === null ? "—" : `${(campaign.replyRate * 100).toFixed(1)}%`}
-                  />
-                </dl>
-              </SpotlightLink>
-            </li>
-          ))}
-        </ul>
-      )}
+      <CampaignsTable rows={rows} />
     </PageShell>
   );
 }

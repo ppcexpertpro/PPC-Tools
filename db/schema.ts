@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   integer,
+  boolean,
   timestamp,
   jsonb,
   uniqueIndex,
@@ -140,6 +141,36 @@ export const messages = pgTable("messages", {
   rfcMessageId: text("rfc_message_id").notNull(),
   status: text("status").notNull().default("sent"),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One row per message in a Replies thread that isn't a templated sequence
+ * step send (those stay tracked in `messages`, as before) - inbound replies
+ * from the poller (see worker/poller.ts's handleReplies()), and an
+ * operator's own free-text replies sent from the Replies inbox.
+ * `direction` distinguishes them: "in" for a contact's reply, "out" for an
+ * operator's. `status`/`snoozedUntil` only carry meaning on "in" rows and
+ * drive the Replies inbox's filter tabs and thread actions: "unhandled" on
+ * insert, "handled" once an operator marks it (or replies), "snoozed" until
+ * `snoozedUntil`. `unsubscribeRequested` is a simple keyword match against
+ * the message body - not a general sentiment classifier, just enough to
+ * flag threads worth prioritizing. */
+export const replies = pgTable("replies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  enrollmentId: uuid("enrollment_id")
+    .notNull()
+    .references(() => enrollments.id),
+  mailboxId: uuid("mailbox_id").references(() => mailboxes.id, { onDelete: "set null" }),
+  direction: text("direction").notNull().default("in"),
+  rfcMessageId: text("rfc_message_id"),
+  providerThreadId: text("provider_thread_id"),
+  fromAddress: text("from_address").notNull(),
+  subject: text("subject").notNull().default(""),
+  snippet: text("snippet").notNull().default(""),
+  bodyText: text("body_text").notNull().default(""),
+  status: text("status").notNull().default("unhandled"),
+  snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+  unsubscribeRequested: boolean("unsubscribe_requested").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const suppressions = pgTable(

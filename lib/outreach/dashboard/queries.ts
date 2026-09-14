@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { campaigns, enrollments, mailboxes, messages, workerHeartbeats } from "@/db/schema";
 import { computeBounceRate, type BounceRateResult } from "@/lib/outreach/deliverability/bounceRate";
@@ -93,6 +93,34 @@ export async function getCampaignPerformanceRows(): Promise<CampaignPerformanceR
       active: byStatus("active"),
       replyRate: denominator > 0 ? replied / denominator : null,
     };
+  });
+}
+
+const TREND_DAYS = 14;
+
+/** One count per day for the trailing `days` days (oldest first), zero-filled
+ * for days with no sends - backs the dashboard's sent-volume sparkline. */
+export async function getSentVolumeTrend(days: number = TREND_DAYS, now: Date = new Date()): Promise<number[]> {
+  const since = new Date(now);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+  since.setUTCHours(0, 0, 0, 0);
+
+  const rows = await db
+    .select({
+      day: sql<string>`date_trunc('day', ${messages.sentAt})::date`,
+      count: count(),
+    })
+    .from(messages)
+    .where(gte(messages.sentAt, since))
+    .groupBy(sql`date_trunc('day', ${messages.sentAt})::date`);
+
+  const byDay = new Map(rows.map((r) => [r.day, r.count]));
+
+  return Array.from({ length: days }, (_, i) => {
+    const day = new Date(since);
+    day.setUTCDate(day.getUTCDate() + i);
+    const key = day.toISOString().slice(0, 10);
+    return byDay.get(key) ?? 0;
   });
 }
 

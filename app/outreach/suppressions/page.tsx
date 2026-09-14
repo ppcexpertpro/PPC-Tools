@@ -4,6 +4,7 @@ import { suppressions } from "@/db/schema";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusBadge, type StatusTone } from "@/components/shared/StatusBadge";
 import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { BlueprintCard } from "@/components/outreach/BlueprintCard";
 import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
 import { SuppressionForm } from "./SuppressionForm";
@@ -36,12 +37,12 @@ export default async function SuppressionsPage({ searchParams }: { searchParams:
         description="Addresses on this list are never sent to, by any campaign, regardless of what a CSV import contains."
       />
 
-      <section className="mb-8 rounded-2xl border border-border bg-surface p-5 shadow-raised">
+      <BlueprintCard className="mb-8">
         <h2 className="mb-4 font-display text-sm font-semibold uppercase tracking-wide text-ink-muted">
           Add an address
         </h2>
         <SuppressionForm />
-      </section>
+      </BlueprintCard>
 
       {pageRows.length === 0 ? (
         <EmptyState
@@ -54,8 +55,12 @@ export default async function SuppressionsPage({ searchParams }: { searchParams:
             <li
               key={row.id}
               style={{ "--index": index } as React.CSSProperties}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 shadow-raised"
+              className="blueprint flex flex-wrap items-center justify-between gap-4 p-4"
             >
+              <i className="corner tl" aria-hidden="true" />
+              <i className="corner tr" aria-hidden="true" />
+              <i className="corner bl" aria-hidden="true" />
+              <i className="corner br" aria-hidden="true" />
               <div className="min-w-0">
                 <p className="truncate font-medium text-ink">{row.email}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">

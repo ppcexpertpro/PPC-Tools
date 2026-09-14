@@ -106,8 +106,12 @@ export default async function EventsPage({
             <li
               key={row.id}
               style={{ "--index": index } as React.CSSProperties}
-              className="rounded-2xl border border-border bg-surface p-4 shadow-raised"
+              className="blueprint p-4"
             >
+              <i className="corner tl" aria-hidden="true" />
+              <i className="corner tr" aria-hidden="true" />
+              <i className="corner bl" aria-hidden="true" />
+              <i className="corner br" aria-hidden="true" />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <StatusBadge status={row.type} tone={EVENT_TONES[row.type] ?? "neutral"} />
                 <time

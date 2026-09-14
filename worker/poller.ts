@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { contacts, enrollments, events, mailboxes, messages, suppressions, workerHeartbeats } from "@/db/schema";
+import { contacts, enrollments, events, mailboxes, messages, replies, suppressions, workerHeartbeats } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
 import { parseMailboxCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { createImapClient, type ImapClient, type InboxMessage } from "@/lib/outreach/transport/imap";
@@ -9,6 +9,7 @@ import { createGmailPollClient, type GmailPollClient } from "@/lib/outreach/tran
 import type { ImapCredentials, GoogleOAuthCredentials } from "@/lib/outreach/mailboxes/credentials";
 import { isDsnMessage, extractStatusCode, classifyStatusCode } from "@/lib/outreach/poller/bounce";
 import { matchReplies } from "@/lib/outreach/poller/replyMatching";
+import { parseInboundMessage } from "@/lib/outreach/replies/parseInboundMessage";
 import { computeBounceRate } from "@/lib/outreach/deliverability/bounceRate";
 
 config({ quiet: true });
@@ -69,7 +70,7 @@ export async function runPoll(
 
     mailboxesPolled += 1;
 
-    const repliedFromAddresses = new Set<string>();
+    const repliedMessagesByAddress = new Map<string, InboxMessage[]>();
 
     for (const message of inboxMessages) {
       if (isDsnMessage(message.from, message.source)) {
@@ -78,12 +79,14 @@ export async function runPoll(
           bounced += await handleBounce(mailbox.mailboxId, message.source);
         }
       } else if (message.from) {
-        repliedFromAddresses.add(message.from);
+        const existing = repliedMessagesByAddress.get(message.from);
+        if (existing) existing.push(message);
+        else repliedMessagesByAddress.set(message.from, [message]);
       }
     }
 
-    if (repliedFromAddresses.size > 0) {
-      replied += await handleReplies(mailbox.mailboxId, repliedFromAddresses);
+    if (repliedMessagesByAddress.size > 0) {
+      replied += await handleReplies(mailbox.mailboxId, repliedMessagesByAddress);
     }
 
     await db.update(mailboxes).set(updates).where(eq(mailboxes.id, mailbox.mailboxId));
@@ -121,7 +124,7 @@ async function checkCircuitBreaker(mailboxId: string): Promise<void> {
   });
 }
 
-async function handleReplies(mailboxId: string, repliedFromAddresses: Set<string>): Promise<number> {
+async function handleReplies(mailboxId: string, repliedMessagesByAddress: Map<string, InboxMessage[]>): Promise<number> {
   const activeForMailbox = await db
     .select({ enrollmentId: enrollments.id, contactEmail: contacts.email })
     .from(enrollments)
@@ -130,14 +133,32 @@ async function handleReplies(mailboxId: string, repliedFromAddresses: Set<string
 
   const repliedEnrollmentIds = matchReplies(
     activeForMailbox.map((row) => ({ enrollmentId: row.enrollmentId, contactEmail: row.contactEmail })),
-    repliedFromAddresses,
+    new Set(repliedMessagesByAddress.keys()),
   );
+  const emailByEnrollmentId = new Map(activeForMailbox.map((row) => [row.enrollmentId, row.contactEmail]));
 
   for (const enrollmentId of repliedEnrollmentIds) {
     await db
       .update(enrollments)
       .set({ status: "replied", nextSendAt: null })
       .where(eq(enrollments.id, enrollmentId));
+
+    const email = emailByEnrollmentId.get(enrollmentId)?.toLowerCase() ?? "";
+    const inboundMessages = repliedMessagesByAddress.get(email) ?? [];
+
+    for (const message of inboundMessages) {
+      const parsed = await parseInboundMessage(message.source);
+      await db.insert(replies).values({
+        enrollmentId,
+        mailboxId,
+        rfcMessageId: parsed.rfcMessageId,
+        fromAddress: message.from,
+        subject: parsed.subject,
+        snippet: parsed.snippet,
+        bodyText: parsed.bodyText,
+        unsubscribeRequested: parsed.unsubscribeRequested,
+      });
+    }
   }
 
   return repliedEnrollmentIds.length;

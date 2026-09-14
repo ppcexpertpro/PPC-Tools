@@ -1,37 +1,40 @@
-import Link from "next/link";
+import { Barlow, Barlow_Condensed } from "next/font/google";
 import { getCurrentUser } from "@/lib/outreach/auth/currentUser";
-import { OutreachNav } from "@/components/outreach/OutreachNav";
-import { SignOutButton } from "./SignOutButton";
+import { RailNav } from "@/components/outreach/RailNav";
+import { getWorkerHeartbeats } from "@/lib/outreach/dashboard/queries";
+import { getUnhandledReplyCount } from "@/lib/outreach/replies/queries";
+import "./outreach-theme.css";
+
+const barlow = Barlow({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-barlow",
+  display: "swap",
+});
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-barlow-condensed",
+  display: "swap",
+});
 
 export default async function OutreachLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
-  return (
-    <>
-      {/* No user means login or first-run setup, which get no console chrome. */}
-      {user && (
-        <div className="border-b border-border bg-paper">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-2.5 sm:px-6">
-            <OutreachNav />
+  // No user means login or first-run setup, which keep the suite's default
+  // look (they already have their own bespoke card treatment) rather than
+  // the console shell below.
+  if (!user) return <>{children}</>;
 
-            <div className="flex items-center gap-3 text-sm">
-              {user.role === "admin" && (
-                <Link
-                  href="/outreach/settings/users"
-                  className="rounded-md text-ink-muted transition-colors duration-200 ease-out hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
-                >
-                  Users
-                </Link>
-              )}
-              <span className="hidden text-ink-faint sm:inline" title={user.email}>
-                {user.email}
-              </span>
-              <SignOutButton />
-            </div>
-          </div>
-        </div>
-      )}
-      {children}
-    </>
+  const [heartbeats, unreadReplies] = await Promise.all([getWorkerHeartbeats(), getUnhandledReplyCount()]);
+
+  return (
+    <div
+      className={`outreach-theme ${barlow.variable} ${barlowCondensed.variable} flex min-h-dvh w-full bg-paper font-sans text-ink`}
+    >
+      <RailNav user={user} heartbeats={heartbeats} counts={{ unreadReplies }} />
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+    </div>
   );
 }

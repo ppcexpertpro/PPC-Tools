@@ -3,6 +3,7 @@ import { mailboxes } from "@/db/schema";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { BlueprintCard } from "@/components/outreach/BlueprintCard";
 import { MailboxForm } from "./MailboxForm";
 import { ResumeMailboxButton } from "./ResumeMailboxButton";
 import { EditMailboxButton } from "./EditMailboxButton";
@@ -63,8 +64,12 @@ export default async function MailboxesPage({
             <li
               key={mailbox.id}
               style={{ "--index": index } as React.CSSProperties}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 shadow-raised"
+              className="blueprint flex flex-wrap items-center justify-between gap-4 p-4"
             >
+              <i className="corner tl" aria-hidden="true" />
+              <i className="corner tr" aria-hidden="true" />
+              <i className="corner bl" aria-hidden="true" />
+              <i className="corner br" aria-hidden="true" />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-ink">{mailbox.fromName}</span>
@@ -93,7 +98,7 @@ export default async function MailboxesPage({
         </ul>
       )}
 
-      <section className="mt-10 rounded-2xl border border-border bg-surface p-6 shadow-raised">
+      <BlueprintCard className="mt-10">
         <h2 className="font-display text-lg font-semibold text-ink">Connect a mailbox</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Google is the better option where it&apos;s available — threading and reply detection go
@@ -126,7 +131,7 @@ export default async function MailboxesPage({
             <MailboxForm />
           </div>
         </details>
-      </section>
+      </BlueprintCard>
     </PageShell>
   );
 }
