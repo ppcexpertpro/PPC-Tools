@@ -8,12 +8,16 @@ import { createSmtpTransport } from "@/lib/outreach/transport/smtp";
 import { createGmailTransport } from "@/lib/outreach/transport/gmail";
 import { buildThreadHeaders } from "@/lib/outreach/templates/threading";
 import { getThreadMessages } from "@/lib/outreach/replies/queries";
+import { getCurrentUser } from "@/lib/outreach/auth/currentUser";
 
 /** `id` is the enrollment id a Replies thread is keyed by. Sends a free-text
  * reply from the enrollment's assigned mailbox, threaded into the same
  * conversation, then marks the thread handled - "sending stops for this
  * contact either way" per the Replies composer's own helper text. */
 export async function POST(request: Request, ctx: RouteContext<"/api/outreach/replies/[id]/reply">) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
   const { id } = await ctx.params;
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
