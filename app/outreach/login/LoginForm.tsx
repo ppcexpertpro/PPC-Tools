@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/shared/Button";
+import { Field } from "@/components/shared/Field";
 import { useUIStore } from "@/store/uiStore";
-
-const inputClass =
-  "min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
 
 export function LoginForm({ next }: { next: string }) {
   const [email, setEmail] = useState("");
@@ -36,14 +34,20 @@ export function LoginForm({ next }: { next: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Password
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
-      </label>
+      <Field
+        id="login-email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Field
+        id="login-password"
+        label="Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <Button loading={loading} disabled={!email || !password} onClick={handleSubmit}>
         Sign in
       </Button>

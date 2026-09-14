@@ -4,10 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/shared/Button";
 import { Checkbox } from "@/components/shared/Checkbox";
+import { Field } from "@/components/shared/Field";
 import { useUIStore } from "@/store/uiStore";
-
-const inputClass =
-  "min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
 
 export function MailboxForm() {
   const [fromName, setFromName] = useState("");
@@ -54,48 +52,38 @@ export function MailboxForm() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        From name
-        <input value={fromName} onChange={(e) => setFromName(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        From email
-        <input value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        SMTP host
-        <input value={host} onChange={(e) => setHost(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        SMTP port
-        <input
-          type="number"
-          value={port}
-          onChange={(e) => setPort(Number(e.target.value))}
-          className={inputClass}
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Username
-        <input value={user} onChange={(e) => setUser(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Password / app password
-        <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        IMAP host <span className="text-ink-faint">(for reply detection)</span>
-        <input value={imapHost} onChange={(e) => setImapHost(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        IMAP port
-        <input
-          type="number"
-          value={imapPort}
-          onChange={(e) => setImapPort(Number(e.target.value))}
-          className={inputClass}
-        />
-      </label>
+      <Field id="mailbox-from-name" label="From name" value={fromName} onChange={(e) => setFromName(e.target.value)} />
+      <Field id="mailbox-from-email" label="From email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
+      <Field id="mailbox-smtp-host" label="SMTP host" value={host} onChange={(e) => setHost(e.target.value)} />
+      <Field
+        id="mailbox-smtp-port"
+        label="SMTP port"
+        type="number"
+        value={port}
+        onChange={(e) => setPort(Number(e.target.value))}
+      />
+      <Field id="mailbox-user" label="Username" value={user} onChange={(e) => setUser(e.target.value)} />
+      <Field
+        id="mailbox-pass"
+        label="Password / app password"
+        type="password"
+        value={pass}
+        onChange={(e) => setPass(e.target.value)}
+      />
+      <Field
+        id="mailbox-imap-host"
+        label="IMAP host"
+        hint="For reply detection."
+        value={imapHost}
+        onChange={(e) => setImapHost(e.target.value)}
+      />
+      <Field
+        id="mailbox-imap-port"
+        label="IMAP port"
+        type="number"
+        value={imapPort}
+        onChange={(e) => setImapPort(Number(e.target.value))}
+      />
       <Checkbox
         id="imap-secure"
         label="Use TLS for IMAP"
@@ -103,15 +91,13 @@ export function MailboxForm() {
         onChange={setImapSecure}
         className="sm:col-span-2"
       />
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Daily send cap
-        <input
-          type="number"
-          value={dailyCap}
-          onChange={(e) => setDailyCap(Number(e.target.value))}
-          className={inputClass}
-        />
-      </label>
+      <Field
+        id="mailbox-daily-cap"
+        label="Daily send cap"
+        type="number"
+        value={dailyCap}
+        onChange={(e) => setDailyCap(Number(e.target.value))}
+      />
       <Checkbox id="smtp-secure" label="Use TLS" checked={secure} onChange={setSecure} className="sm:col-span-2" />
       <Button
         className="sm:col-span-2"

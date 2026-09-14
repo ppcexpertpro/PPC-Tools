@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/shared/Button";
+import { Field } from "@/components/shared/Field";
 import { useUIStore } from "@/store/uiStore";
-
-const inputClass =
-  "min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
 
 export function SetupForm() {
   const [email, setEmail] = useState("");
@@ -42,23 +40,29 @@ export function SetupForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Password
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Confirm password
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className={inputClass}
-        />
-      </label>
+      <Field
+        id="setup-email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Field
+        id="setup-password"
+        label="Password"
+        type="password"
+        hint="At least 8 characters."
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <Field
+        id="setup-confirm-password"
+        label="Confirm password"
+        type="password"
+        error={confirmPassword && password !== confirmPassword ? "Passwords don't match." : undefined}
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+      />
       <Button loading={loading} disabled={!email || password.length < 8} onClick={handleSubmit}>
         Create admin account
       </Button>

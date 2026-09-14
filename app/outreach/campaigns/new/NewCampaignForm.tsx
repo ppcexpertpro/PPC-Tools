@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/shared/Button";
 import { Checkbox } from "@/components/shared/Checkbox";
+import { Field } from "@/components/shared/Field";
 import { Textarea } from "@/components/shared/Textarea";
 import { useUIStore } from "@/store/uiStore";
 
@@ -22,9 +23,6 @@ interface StepDraft {
 const MAX_STEPS = 5;
 const DEFAULT_BODY = "Hi {{first_name}},\n\n\n\nUnsubscribe: {{unsubscribe_token}}";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const inputClass =
-  "min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
 
 function makeStep(delayDays: number): StepDraft {
   return { subjectTemplate: "", bodyTemplate: DEFAULT_BODY, delayDays };
@@ -113,10 +111,7 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
         </div>
       </fieldset>
 
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Campaign name
-        <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-      </label>
+      <Field id="campaign-name" label="Campaign name" value={name} onChange={(e) => setName(e.target.value)} />
 
       <div className="flex flex-col gap-4">
         {steps.map((step, index) => (
@@ -141,26 +136,23 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
 
             <div className="mt-3 flex flex-col gap-3">
               {index > 0 && (
-                <label className="flex flex-col gap-1 text-sm text-ink-muted">
-                  Delay (days)
-                  <input
-                    type="number"
-                    min={1}
-                    value={step.delayDays}
-                    onChange={(e) => updateStep(index, { delayDays: Number(e.target.value) })}
-                    className={`${inputClass} max-w-32`}
-                  />
-                </label>
-              )}
-              <label className="flex flex-col gap-1 text-sm text-ink-muted">
-                Subject
-                <input
-                  value={step.subjectTemplate}
-                  onChange={(e) => updateStep(index, { subjectTemplate: e.target.value })}
-                  placeholder="Quick question about {{company}}"
-                  className={inputClass}
+                <Field
+                  id={`step-delay-${index}`}
+                  label="Delay (days)"
+                  type="number"
+                  min={1}
+                  className="max-w-32"
+                  value={step.delayDays}
+                  onChange={(e) => updateStep(index, { delayDays: Number(e.target.value) })}
                 />
-              </label>
+              )}
+              <Field
+                id={`step-subject-${index}`}
+                label="Subject"
+                placeholder="Quick question about {{company}}"
+                value={step.subjectTemplate}
+                onChange={(e) => updateStep(index, { subjectTemplate: e.target.value })}
+              />
               <Textarea
                 id={`body-template-${index}`}
                 label="Body"
@@ -180,10 +172,12 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
         )}
       </div>
 
-      <label className="flex flex-col gap-1 text-sm text-ink-muted">
-        Postal address (required by CAN-SPAM)
-        <input value={postalAddress} onChange={(e) => setPostalAddress(e.target.value)} className={inputClass} />
-      </label>
+      <Field
+        id="postal-address"
+        label="Postal address (required by CAN-SPAM)"
+        value={postalAddress}
+        onChange={(e) => setPostalAddress(e.target.value)}
+      />
 
       <details className="rounded-2xl border border-border bg-surface p-4">
         <summary className="cursor-pointer font-display text-sm font-semibold text-ink">Advanced scheduling</summary>
@@ -203,48 +197,40 @@ export function NewCampaignForm({ mailboxes }: { mailboxes: MailboxOption[] }) {
             </div>
           </fieldset>
           <div className="grid grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              Business hours start
-              <input
-                type="number"
-                min={0}
-                max={23}
-                value={businessHoursStart}
-                onChange={(e) => setBusinessHoursStart(Number(e.target.value))}
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              Business hours end
-              <input
-                type="number"
-                min={1}
-                max={24}
-                value={businessHoursEnd}
-                onChange={(e) => setBusinessHoursEnd(Number(e.target.value))}
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              Base interval (seconds)
-              <input
-                type="number"
-                min={1}
-                value={baseIntervalSeconds}
-                onChange={(e) => setBaseIntervalSeconds(Number(e.target.value))}
-                className={inputClass}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-ink-muted">
-              Per-domain daily limit
-              <input
-                type="number"
-                min={1}
-                value={domainThrottleLimit}
-                onChange={(e) => setDomainThrottleLimit(Number(e.target.value))}
-                className={inputClass}
-              />
-            </label>
+            <Field
+              id="business-hours-start"
+              label="Business hours start"
+              type="number"
+              min={0}
+              max={23}
+              value={businessHoursStart}
+              onChange={(e) => setBusinessHoursStart(Number(e.target.value))}
+            />
+            <Field
+              id="business-hours-end"
+              label="Business hours end"
+              type="number"
+              min={1}
+              max={24}
+              value={businessHoursEnd}
+              onChange={(e) => setBusinessHoursEnd(Number(e.target.value))}
+            />
+            <Field
+              id="base-interval-seconds"
+              label="Base interval (seconds)"
+              type="number"
+              min={1}
+              value={baseIntervalSeconds}
+              onChange={(e) => setBaseIntervalSeconds(Number(e.target.value))}
+            />
+            <Field
+              id="domain-throttle-limit"
+              label="Per-domain daily limit"
+              type="number"
+              min={1}
+              value={domainThrottleLimit}
+              onChange={(e) => setDomainThrottleLimit(Number(e.target.value))}
+            />
           </div>
         </div>
       </details>
