@@ -17,6 +17,7 @@ export interface ToastMessage {
 interface UIState {
   toasts: ToastMessage[];
   isProcessing: boolean;
+  isCommandPaletteOpen: boolean;
   showToast: (
     variant: ToastVariant,
     message: string,
@@ -24,11 +25,14 @@ interface UIState {
   ) => void;
   dismissToast: (id: string) => void;
   setProcessing: (isProcessing: boolean) => void;
+  setCommandPaletteOpen: (isCommandPaletteOpen: boolean) => void;
+  toggleCommandPalette: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
   isProcessing: false,
+  isCommandPaletteOpen: false,
   showToast: (variant, message, action) =>
     set((state) => ({
       toasts: [
@@ -41,4 +45,7 @@ export const useUIStore = create<UIState>((set) => ({
       toasts: state.toasts.filter((toast) => toast.id !== id),
     })),
   setProcessing: (isProcessing) => set({ isProcessing }),
+  setCommandPaletteOpen: (isCommandPaletteOpen) => set({ isCommandPaletteOpen }),
+  toggleCommandPalette: () =>
+    set((state) => ({ isCommandPaletteOpen: !state.isCommandPaletteOpen })),
 }));

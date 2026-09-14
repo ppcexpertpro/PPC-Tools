@@ -3,7 +3,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary";
+export type ButtonVariant = "primary" | "secondary" | "danger";
 
 export interface ButtonProps extends Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -28,6 +28,10 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   // so toggling to the disabled treatment never changes the box size.
   primary: `bg-signal text-white border border-transparent shadow-raised hover:bg-signal-strong ${DISABLED_CLASSES}`,
   secondary: `bg-surface text-ink border border-border-strong shadow-raised hover:bg-paper ${DISABLED_CLASSES}`,
+  // Reserved for the confirming press of an irreversible action, never for the
+  // button that merely opens its confirmation - a row of red buttons in a list
+  // stops reading as a warning and just becomes the colour that list is.
+  danger: `bg-danger text-white border border-transparent shadow-raised hover:bg-danger/90 ${DISABLED_CLASSES}`,
 };
 
 export function Button({

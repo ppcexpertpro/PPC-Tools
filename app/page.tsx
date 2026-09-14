@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon, ShieldIcon } from "@/components/shared/icons";
+import { SpotlightSurface } from "@/components/shared/Spotlight";
 import heroWorkflow from "@/public/illustrations/hero-workflow.svg";
 import matchTypeArt from "@/public/illustrations/match-type.svg";
 import mergeMatchArt from "@/public/illustrations/merge-match.svg";
@@ -167,7 +168,9 @@ export default function HomePage() {
         */}
         <div className="animate-stagger grid grid-flow-dense gap-5 lg:grid-cols-5">
           {TOOLS.map((tool, index) => (
-            <Link
+            // `SpotlightSurface` only adds the cursor-tracking border; the
+            // tile keeps every other class it already had.
+            <SpotlightSurface
               key={tool.href}
               href={tool.href}
               style={{ "--index": index } as CSSProperties}
@@ -205,7 +208,7 @@ export default function HomePage() {
                   sizes="(min-width: 1024px) 40vw, 100vw"
                 />
               </div>
-            </Link>
+            </SpotlightSurface>
           ))}
 
           <div

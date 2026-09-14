@@ -1,11 +1,33 @@
-import Link from "next/link";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { campaigns, contacts, enrollments, mailboxes, messages } from "@/db/schema";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
 
 export const dynamic = "force-dynamic";
+
+const TH = "px-4 py-2.5 font-mono text-[0.625rem] font-medium uppercase tracking-wider text-ink-faint";
+const TD = "px-4 py-3 align-top";
+
+function formatTimestamp(value: Date): string {
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const [campaign] = await db.select({ name: campaigns.name }).from(campaigns).where(eq(campaigns.id, id));
+
+  return { title: campaign ? `${campaign.name} contacts | Outreach` : "Contacts | Outreach" };
+}
 
 export default async function CampaignEnrollmentsPage({
   params,
@@ -41,7 +63,10 @@ export default async function CampaignEnrollmentsPage({
   const hasNextPage = rows.length > PAGE_SIZE;
   const pageRows = rows.slice(0, PAGE_SIZE);
 
-  const messagesByEnrollment = new Map<string, { rfcMessageId: string; status: string; sentAt: Date; providerThreadId: string | null }[]>();
+  // Scoped to the 50 enrollments actually on this page. The previous version
+  // selected every message in the table and filtered in JS, which grows with
+  // total send volume rather than with what's on screen.
+  const messagesByEnrollment = new Map<string, { rfcMessageId: string; status: string; sentAt: Date }[]>();
   if (pageRows.length > 0) {
     const messageRows = await db
       .select({
@@ -49,12 +74,12 @@ export default async function CampaignEnrollmentsPage({
         rfcMessageId: messages.rfcMessageId,
         status: messages.status,
         sentAt: messages.sentAt,
-        providerThreadId: messages.providerThreadId,
       })
       .from(messages)
+      .where(inArray(messages.enrollmentId, pageRows.map((row) => row.enrollmentId)))
       .orderBy(desc(messages.sentAt));
+
     for (const row of messageRows) {
-      if (!pageRows.some((r) => r.enrollmentId === row.enrollmentId)) continue;
       const existing = messagesByEnrollment.get(row.enrollmentId) ?? [];
       existing.push(row);
       messagesByEnrollment.set(row.enrollmentId, existing);
@@ -62,67 +87,78 @@ export default async function CampaignEnrollmentsPage({
   }
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-4 py-12 outline-none sm:px-6">
-      <h1 className="font-display text-3xl font-bold text-ink">{campaign.name} — contacts</h1>
-      <p className="mt-2 text-sm text-ink-faint">
-        Message metadata only — the rendered subject/body isn&apos;t stored per send.
-      </p>
+    <PageShell width="wide">
+      <PageHeader
+        back={{ href: `/outreach/campaigns/${id}`, label: campaign.name }}
+        title="Contacts"
+        description="Message metadata only — the rendered subject and body aren't stored per send."
+      />
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-border text-xs uppercase tracking-wide text-ink-faint">
-            <tr>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Step</th>
-              <th className="px-4 py-3">Mailbox</th>
-              <th className="px-4 py-3">Next send</th>
-              <th className="px-4 py-3">Messages</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((row) => (
-              <tr key={row.enrollmentId} className="border-b border-border align-top last:border-0">
-                <td className="px-4 py-3">{row.contactEmail}</td>
-                <td className="px-4 py-3 font-mono text-xs uppercase">{row.status}</td>
-                <td className="px-4 py-3">{row.currentStep}</td>
-                <td className="px-4 py-3 text-ink-faint">{row.mailboxFromEmail ?? "-"}</td>
-                <td className="px-4 py-3 text-ink-faint">{row.nextSendAt ? new Date(row.nextSendAt).toLocaleString() : "-"}</td>
-                <td className="px-4 py-3">
-                  {(messagesByEnrollment.get(row.enrollmentId) ?? []).map((m) => (
-                    <div key={m.rfcMessageId} className="font-mono text-xs text-ink-faint">
-                      {m.status} · {new Date(m.sentAt).toLocaleString()}
-                    </div>
-                  ))}
-                  {!messagesByEnrollment.has(row.enrollmentId) && <span className="text-ink-faint">none yet</span>}
-                </td>
-              </tr>
-            ))}
-            {pageRows.length === 0 && (
+      {pageRows.length === 0 ? (
+        <EmptyState
+          title="No contacts on this page"
+          description="Import a CSV from the campaign page to enrol contacts into this sequence."
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-raised">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-border">
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-ink-muted">
-                  No contacts imported yet.
-                </td>
+                <th className={TH}>Contact</th>
+                <th className={TH}>Status</th>
+                <th className={TH}>Step</th>
+                <th className={TH}>Mailbox</th>
+                <th className={TH}>Next send</th>
+                <th className={TH}>Sent</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => {
+                const sent = messagesByEnrollment.get(row.enrollmentId) ?? [];
 
-      <div className="mt-4 flex justify-between text-sm">
-        {page > 1 ? (
-          <Link href={`/outreach/campaigns/${id}/enrollments?page=${page - 1}`} className="text-signal underline underline-offset-2">
-            Previous
-          </Link>
-        ) : (
-          <span />
-        )}
-        {hasNextPage && (
-          <Link href={`/outreach/campaigns/${id}/enrollments?page=${page + 1}`} className="text-signal underline underline-offset-2">
-            Next
-          </Link>
-        )}
-      </div>
-    </main>
+                return (
+                  <tr key={row.enrollmentId} className="border-b border-border last:border-0">
+                    <td className={`${TD} text-ink`}>{row.contactEmail}</td>
+                    <td className={TD}>
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td data-numeric className={`${TD} font-mono text-xs text-ink-muted`}>
+                      {row.currentStep}
+                    </td>
+                    <td className={`${TD} text-xs text-ink-faint`}>{row.mailboxFromEmail ?? "—"}</td>
+                    <td data-numeric className={`${TD} font-mono text-xs text-ink-muted`}>
+                      {row.nextSendAt ? formatTimestamp(row.nextSendAt) : "—"}
+                    </td>
+                    <td className={TD}>
+                      {sent.length === 0 ? (
+                        <span className="text-xs text-ink-faint">none yet</span>
+                      ) : (
+                        <ul className="flex flex-col gap-0.5">
+                          {sent.map((message) => (
+                            <li
+                              key={message.rfcMessageId}
+                              data-numeric
+                              className="font-mono text-xs text-ink-faint"
+                            >
+                              {formatTimestamp(message.sentAt)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Pagination
+        page={page}
+        hasNextPage={hasNextPage}
+        hrefFor={(target) => `/outreach/campaigns/${id}/enrollments?page=${target}`}
+      />
+    </PageShell>
   );
 }

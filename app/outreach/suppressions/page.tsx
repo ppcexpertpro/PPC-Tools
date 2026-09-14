@@ -1,13 +1,19 @@
-import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { suppressions } from "@/db/schema";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatusBadge, type StatusTone } from "@/components/shared/StatusBadge";
+import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
 import { SuppressionForm } from "./SuppressionForm";
 import { RemoveSuppressionButton } from "./RemoveSuppressionButton";
 
 export const metadata = { title: "Suppressions | PPC Keyword Utilities Suite" };
 export const dynamic = "force-dynamic";
+
+/* hard_bounce is written by the poller; anything else was added by hand. */
+const reasonTone = (reason: string): StatusTone => (reason === "hard_bounce" ? "fault" : "neutral");
 
 export default async function SuppressionsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const { page: pageParam } = await searchParams;
@@ -24,43 +30,56 @@ export default async function SuppressionsPage({ searchParams }: { searchParams:
   const pageRows = rows.slice(0, PAGE_SIZE);
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-12 outline-none sm:px-6">
-      <h1 className="font-display text-3xl font-bold text-ink">Suppressions</h1>
-      <p className="mt-2 text-sm text-ink-muted">
-        Addresses on this list are never sent to, in any campaign, regardless of import.
-      </p>
+    <PageShell>
+      <PageHeader
+        title="Suppressions"
+        description="Addresses on this list are never sent to, by any campaign, regardless of what a CSV import contains."
+      />
 
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+      <section className="mb-8 rounded-2xl border border-border bg-surface p-5 shadow-raised">
+        <h2 className="mb-4 font-display text-sm font-semibold uppercase tracking-wide text-ink-muted">
+          Add an address
+        </h2>
         <SuppressionForm />
-      </div>
+      </section>
 
-      <ul className="mt-6 flex flex-col gap-2">
-        {pageRows.map((row) => (
-          <li key={row.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 text-sm">
-            <div>
-              <span className="font-medium text-ink">{row.email}</span>{" "}
-              <span className="text-ink-faint">— {row.reason}</span>
-            </div>
-            <RemoveSuppressionButton id={row.id} />
-          </li>
-        ))}
-        {pageRows.length === 0 && <li className="text-sm text-ink-muted">No suppressed addresses.</li>}
-      </ul>
+      {pageRows.length === 0 ? (
+        <EmptyState
+          title="Nothing suppressed"
+          description="Hard bounces and unsubscribes land here automatically. You can also add an address by hand above."
+        />
+      ) : (
+        <ul className="animate-stagger flex flex-col gap-2">
+          {pageRows.map((row, index) => (
+            <li
+              key={row.id}
+              style={{ "--index": index } as React.CSSProperties}
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 shadow-raised"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-ink">{row.email}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={row.reason} tone={reasonTone(row.reason)} />
+                  <time
+                    data-numeric
+                    dateTime={new Date(row.createdAt).toISOString()}
+                    className="font-mono text-xs text-ink-faint"
+                  >
+                    {new Date(row.createdAt).toLocaleDateString()}
+                  </time>
+                </div>
+              </div>
+              <RemoveSuppressionButton id={row.id} email={row.email} />
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="mt-4 flex justify-between text-sm">
-        {page > 1 ? (
-          <Link href={`/outreach/suppressions?page=${page - 1}`} className="text-signal underline underline-offset-2">
-            Previous
-          </Link>
-        ) : (
-          <span />
-        )}
-        {hasNextPage && (
-          <Link href={`/outreach/suppressions?page=${page + 1}`} className="text-signal underline underline-offset-2">
-            Next
-          </Link>
-        )}
-      </div>
-    </main>
+      <Pagination
+        page={page}
+        hasNextPage={hasNextPage}
+        hrefFor={(target) => `/outreach/suppressions?page=${target}`}
+      />
+    </PageShell>
   );
 }

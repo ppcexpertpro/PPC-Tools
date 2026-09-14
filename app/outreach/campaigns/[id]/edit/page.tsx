@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { campaigns, campaignMailboxes, mailboxes, sequenceSteps } from "@/db/schema";
+import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { EditCampaignForm } from "./EditCampaignForm";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +28,12 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
     .orderBy(asc(sequenceSteps.stepOrder));
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-12 outline-none sm:px-6">
-      <h1 className="font-display text-3xl font-bold text-ink">Edit campaign</h1>
+    <PageShell>
+      <PageHeader
+        back={{ href: `/outreach/campaigns/${id}`, label: campaign.name }}
+        title="Edit campaign"
+        description="Editable while the campaign is still a draft. Once it starts, contacts are scheduled against these settings and they lock."
+      />
       <EditCampaignForm
         mailboxes={allMailboxes}
         campaign={{
@@ -44,6 +49,6 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
           steps,
         }}
       />
-    </main>
+    </PageShell>
   );
 }

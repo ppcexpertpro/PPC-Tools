@@ -1,6 +1,8 @@
-import Link from "next/link";
 import { db } from "@/db/client";
 import { mailboxes } from "@/db/schema";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { MailboxForm } from "./MailboxForm";
 import { ResumeMailboxButton } from "./ResumeMailboxButton";
 import { EditMailboxButton } from "./EditMailboxButton";
@@ -33,67 +35,98 @@ export default async function MailboxesPage({
     .from(mailboxes);
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-4 py-12 outline-none sm:px-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold text-ink">Mailboxes</h1>
-        <Link href="/outreach/dashboard" className="text-sm text-signal underline underline-offset-2">
-          Dashboard
-        </Link>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Mailboxes"
+        description="Every account the sequencer sends through. Volume ramps automatically from 15/day on a newly connected mailbox."
+      />
 
       {connected && (
-        <p className="mt-4 rounded-md border border-signal/30 bg-signal-soft px-4 py-3 text-sm text-signal-strong">
+        <p className="mb-6 rounded-md border border-signal/30 bg-signal-soft px-4 py-3 text-sm text-signal-strong">
           Mailbox connected via Google.
         </p>
       )}
       {googleError && (
-        <p className="mt-4 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <p role="alert" className="mb-6 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
           {googleError}
         </p>
       )}
 
-      <ul className="mt-6 flex flex-col gap-2">
-        {rows.map((mailbox) => (
-          <li key={mailbox.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 text-sm">
-            <div>
-              <span className="font-medium text-ink">{mailbox.fromName}</span>{" "}
-              <span className="text-ink-muted">&lt;{mailbox.fromEmail}&gt;</span>
-              <span className="ml-2 font-mono text-xs text-ink-faint">
-                {mailbox.provider === "gmail_oauth" ? "Google" : "SMTP"} - {mailbox.dailyCap}/day - {mailbox.health}
-              </span>
-            </div>
-            <div className="flex flex-none gap-2">
-              {mailbox.health === "paused" && <ResumeMailboxButton mailboxId={mailbox.id} />}
-              <EditMailboxButton mailboxId={mailbox.id} fromName={mailbox.fromName} dailyCap={mailbox.dailyCap} />
-              <DisconnectMailboxButton mailboxId={mailbox.id} fromEmail={mailbox.fromEmail} />
-            </div>
-          </li>
-        ))}
-      </ul>
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No mailboxes connected"
+          description="Connect one below. Campaigns can't start until at least one healthy mailbox exists."
+        />
+      ) : (
+        <ul className="animate-stagger flex flex-col gap-2">
+          {rows.map((mailbox, index) => (
+            <li
+              key={mailbox.id}
+              style={{ "--index": index } as React.CSSProperties}
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 shadow-raised"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-ink">{mailbox.fromName}</span>
+                  <StatusBadge status={mailbox.health} />
+                </div>
+                {/* Gmail-connected mailboxes default their display name to the
+                    address, and printing it twice reads as a bug. */}
+                {mailbox.fromName !== mailbox.fromEmail && (
+                  <p className="mt-0.5 text-sm text-ink-muted">{mailbox.fromEmail}</p>
+                )}
+                <p data-numeric className="mt-1 font-mono text-xs text-ink-faint">
+                  {mailbox.provider === "gmail_oauth" ? "Google" : "SMTP"} · {mailbox.dailyCap}/day
+                </p>
+              </div>
+              <div className="flex flex-none flex-wrap gap-2">
+                {mailbox.health === "paused" && <ResumeMailboxButton mailboxId={mailbox.id} />}
+                <EditMailboxButton
+                  mailboxId={mailbox.id}
+                  fromName={mailbox.fromName}
+                  dailyCap={mailbox.dailyCap}
+                />
+                <DisconnectMailboxButton mailboxId={mailbox.id} fromEmail={mailbox.fromEmail} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="mt-8 flex flex-col gap-6 rounded-2xl border border-border bg-surface p-6">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-ink">Connect a mailbox</h2>
-          {/* Deliberately a plain <a>, not next/link's <Link> - this route
-              sets a CSRF state cookie and issues a redirect to Google as a
-              real side effect. <Link>'s default viewport/hover prefetch
-              would trigger that side effect just from this button being
-              on screen. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a
-            href="/api/outreach/mailboxes/google/start"
-            className="mt-3 inline-flex min-h-11 items-center rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-ink shadow-raised hover:bg-paper"
-          >
-            Connect with Google
-          </a>
-        </div>
-        <div className="border-t border-border pt-6">
-          <h3 className="font-display text-sm font-semibold text-ink">Or connect via SMTP/IMAP</h3>
+      <section className="mt-10 rounded-2xl border border-border bg-surface p-6 shadow-raised">
+        <h2 className="font-display text-lg font-semibold text-ink">Connect a mailbox</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Google is the better option where it&apos;s available — threading and reply detection go
+          through the Gmail API rather than IMAP polling.
+        </p>
+
+        {/* Deliberately a plain <a>, not next/link's <Link> - this route
+            sets a CSRF state cookie and issues a redirect to Google as a
+            real side effect. <Link>'s default viewport/hover prefetch
+            would trigger that side effect just from this button being
+            on screen. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
+          href="/api/outreach/mailboxes/google/start"
+          className="mt-4 inline-flex min-h-11 items-center rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-ink shadow-raised transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-paper hover:border-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.96]"
+        >
+          Connect with Google
+        </a>
+
+        <details className="group mt-6 border-t border-border pt-5">
+          <summary className="cursor-pointer list-none text-sm font-medium text-ink-muted transition-colors duration-200 ease-out hover:text-ink">
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="transition-transform duration-200 ease-out group-open:rotate-90">
+                ›
+              </span>
+              Or connect via SMTP/IMAP
+            </span>
+          </summary>
           <div className="mt-4">
             <MailboxForm />
           </div>
-        </div>
-      </div>
-    </main>
+        </details>
+      </section>
+    </PageShell>
   );
 }

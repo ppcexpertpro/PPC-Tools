@@ -3,6 +3,7 @@ import { Geist, Manrope, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ToastViewport } from "@/components/shared/Toast";
+import { CommandPalette } from "@/components/shared/CommandPalette";
 import "./globals.css";
 
 // Geist rather than Inter for body text: Inter is the default of so many
@@ -94,6 +95,7 @@ export default function RootLayout({
           <Footer />
         </div>
         <ToastViewport />
+        <CommandPalette />
         <script
           type="speculationrules"
           dangerouslySetInnerHTML={{ __html: SPECULATION_RULES }}

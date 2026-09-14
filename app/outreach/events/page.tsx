@@ -1,11 +1,35 @@
-import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { events } from "@/db/schema";
+import { StatusBadge, type StatusTone } from "@/components/shared/StatusBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { PageShell, PageHeader } from "@/components/outreach/PageShell";
+import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
 
 export const metadata = { title: "Events | PPC Keyword Utilities Suite" };
 export const dynamic = "force-dynamic";
+
+/* Event names are verbs about outcomes, so they don't map onto the status
+ * vocabulary StatusBadge knows - each one names its own tone instead. */
+const EVENT_TONES: Record<string, StatusTone> = {
+  message_sent: "live",
+  send_failed: "fault",
+  mailbox_paused: "attention",
+};
+
+/** Ids are long, opaque and never the thing being read - only their tail helps. */
+function formatValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "number") return key.toLowerCase().includes("rate") ? `${(value * 100).toFixed(1)}%` : String(value);
+  if (typeof value !== "string") return JSON.stringify(value);
+  if (/id$/i.test(key) && value.length > 12) return `…${value.slice(-8)}`;
+  return value;
+}
+
+function formatKey(key: string): string {
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+}
 
 export default async function EventsPage({
   searchParams,
@@ -36,57 +60,94 @@ export default async function EventsPage({
   const linkSuffix = type ? `&type=${encodeURIComponent(type)}` : "";
 
   return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-12 outline-none sm:px-6">
-      <h1 className="font-display text-3xl font-bold text-ink">Events</h1>
+    <PageShell>
+      <PageHeader
+        title="Events"
+        description="Append-only record of what the worker and poller did. The first place to look when a campaign isn't behaving."
+      />
 
-      <form className="mt-4 flex items-center gap-2 text-sm" action="/outreach/events">
-        <label className="flex items-center gap-2 text-ink-muted">
-          Type
+      <form className="mb-6 flex flex-wrap items-end gap-2" action="/outreach/events">
+        <label htmlFor="event-type" className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink">Type</span>
           <select
+            id="event-type"
             name="type"
             defaultValue={type ?? ""}
-            className="min-h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink"
+            className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink transition-colors duration-200 ease-out hover:border-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
           >
-            <option value="">All</option>
+            <option value="">All events</option>
             {distinctTypes.map((row) => (
               <option key={row.type} value={row.type}>
-                {row.type}
+                {row.type.replace(/_/g, " ")}
               </option>
             ))}
           </select>
         </label>
-        <button type="submit" className="text-signal underline underline-offset-2">
+        <button
+          type="submit"
+          className="inline-flex min-h-11 items-center rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-ink shadow-raised transition-[background-color,transform] duration-200 ease-out hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 focus-visible:ring-offset-paper active:scale-[0.96]"
+        >
           Filter
         </button>
       </form>
 
-      <ul className="mt-6 flex flex-col gap-2">
-        {pageRows.map((row) => (
-          <li key={row.id} className="rounded-2xl border border-border bg-surface p-4 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase text-ink-faint">{row.type}</span>
-              <span className="text-xs text-ink-faint">{new Date(row.createdAt).toLocaleString()}</span>
-            </div>
-            <pre className="mt-2 overflow-x-auto text-xs text-ink-muted">{JSON.stringify(row.payload, null, 2)}</pre>
-          </li>
-        ))}
-        {pageRows.length === 0 && <li className="text-sm text-ink-muted">No events recorded.</li>}
-      </ul>
+      {pageRows.length === 0 ? (
+        <EmptyState
+          title={type ? `No ${type.replace(/_/g, " ")} events` : "No events recorded"}
+          description={
+            type
+              ? "Nothing of this type has happened yet. Clear the filter to see everything."
+              : "The worker writes here every time it sends, fails, or pauses a mailbox."
+          }
+        />
+      ) : (
+        <ul className="animate-stagger flex flex-col gap-2">
+          {pageRows.map((row, index) => (
+            <li
+              key={row.id}
+              style={{ "--index": index } as React.CSSProperties}
+              className="rounded-2xl border border-border bg-surface p-4 shadow-raised"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <StatusBadge status={row.type} tone={EVENT_TONES[row.type] ?? "neutral"} />
+                <time
+                  data-numeric
+                  dateTime={new Date(row.createdAt).toISOString()}
+                  className="font-mono text-xs text-ink-faint"
+                >
+                  {new Date(row.createdAt).toLocaleString()}
+                </time>
+              </div>
 
-      <div className="mt-4 flex justify-between text-sm">
-        {page > 1 ? (
-          <Link href={`/outreach/events?page=${page - 1}${linkSuffix}`} className="text-signal underline underline-offset-2">
-            Previous
-          </Link>
-        ) : (
-          <span />
-        )}
-        {hasNextPage && (
-          <Link href={`/outreach/events?page=${page + 1}${linkSuffix}`} className="text-signal underline underline-offset-2">
-            Next
-          </Link>
-        )}
-      </div>
-    </main>
+              {/* Rendered as labelled fields rather than a JSON dump - the
+                  payloads are flat objects of three or four keys, so the
+                  braces were pure noise around the two values worth reading. */}
+              <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                {Object.entries(row.payload as Record<string, unknown>).map(([key, value]) => (
+                  <div key={key} className="min-w-0">
+                    <dt className="font-mono text-[0.625rem] uppercase tracking-wider text-ink-faint">
+                      {formatKey(key)}
+                    </dt>
+                    <dd
+                      data-numeric
+                      className="mt-0.5 break-words font-mono text-xs text-ink-muted"
+                      title={typeof value === "string" ? value : undefined}
+                    >
+                      {formatValue(key, value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Pagination
+        page={page}
+        hasNextPage={hasNextPage}
+        hrefFor={(target) => `/outreach/events?page=${target}${linkSuffix}`}
+      />
+    </PageShell>
   );
 }

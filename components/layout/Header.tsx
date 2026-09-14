@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ToolSwitcher } from "@/components/layout/ToolSwitcher";
 import { LogoMark } from "@/components/shared/LogoMark";
+import { CommandPaletteTrigger } from "@/components/shared/CommandPaletteTrigger";
 
 export function Header() {
   return (
@@ -9,10 +10,10 @@ export function Header() {
     //
     // Frosted rather than solid: a long output list scrolling under an opaque
     // bar just vanishes at the seam, whereas a blurred pass-through keeps the
-    // bar reading as a layer above the page. `bg-surface` stays as the base
-    // declaration so browsers without `backdrop-filter` get an opaque bar
-    // instead of unreadable text over live content.
-    <header className="sticky top-0 z-40 border-b border-border bg-surface backdrop-blur-lg backdrop-saturate-150 supports-backdrop-filter:bg-surface/80">
+    // bar reading as a layer above the page. The `glass` class carries the
+    // opaque fallback for browsers without `backdrop-filter`, plus the inset
+    // hairlines that give the bar edge thickness - see app/globals.css.
+    <header className="glass sticky top-0 z-40 border-b border-border">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
           href="/"
@@ -29,7 +30,10 @@ export function Header() {
             </span>
           </span>
         </Link>
-        <ToolSwitcher />
+        <div className="flex items-center gap-2">
+          <ToolSwitcher />
+          <CommandPaletteTrigger />
+        </div>
       </div>
     </header>
   );

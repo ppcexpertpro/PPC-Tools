@@ -60,6 +60,23 @@
   --ease-swap: cubic-bezier(0.2, 0, 0, 1);
 
   /*
+   * A real spring, sampled into `linear()` rather than faked with a cubic
+   * bezier - a bezier cannot overshoot, so "springy" bezier curves just ease
+   * harder instead of settling. ~6% overshoot: enough for a control to feel
+   * like it has mass, small enough that it never reads as a glitch. Reserved
+   * for elements that appear (palette, dialog), not for hover tweaks, where
+   * an overshoot re-triggering on every pointer pass would be noise.
+   *
+   * Browsers without `linear()` drop the whole declaration and fall back to
+   * the transition's default `ease`, which is a degradation, not a break.
+   */
+  --ease-spring: linear(
+    0, 0.006, 0.025, 0.101 6%, 0.539 18.2%, 0.777 25.1%, 0.876, 0.949, 1.001,
+    1.036, 1.056 42.9%, 1.062, 1.063, 1.06, 1.054 51.4%, 1.033 57.5%,
+    1.009 65%, 0.997 72.7%, 0.995 85.4%, 1
+  );
+
+  /*
    * Layered, ink-tinted shadows rather than a single flat drop or a hard
    * border - light falls off gradually, so stacking low-opacity layers reads
    * as depth where one 0.1-alpha blur reads as a smudge.
@@ -279,6 +296,134 @@
   width: 40px;
   height: 40px;
   transform: translate(-50%, -50%);
+}
+
+/*
+ * Modal surfaces built on the native <dialog> element, which supplies the
+ * focus trap, Esc handling and top-layer stacking that a div-based modal has
+ * to reimplement (and usually gets wrong). All that's left is the motion.
+ *
+ * `display` and `overlay` need `allow-discrete` for the exit half: both are
+ * discrete properties, so without it the dialog is yanked from the top layer
+ * on close and the transition plays on an invisible element.
+ */
+.modal-surface {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 240ms var(--ease-spring),
+    display 240ms allow-discrete,
+    overlay 240ms allow-discrete;
+}
+
+.modal-surface:not([open]) {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+}
+
+@starting-style {
+  .modal-surface[open] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+.modal-surface::backdrop {
+  opacity: 1;
+  background-color: rgb(20 24 31 / 0.32);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transition:
+    opacity 240ms var(--ease-out),
+    display 240ms allow-discrete,
+    overlay 240ms allow-discrete;
+}
+
+.modal-surface:not([open])::backdrop {
+  opacity: 0;
+}
+
+@starting-style {
+  .modal-surface[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/*
+ * A frosted pane. The opaque `background-color` is the base declaration so a
+ * browser without `backdrop-filter` gets a solid panel rather than text over
+ * live content; the @supports block then trades that for real translucency.
+ *
+ * The two inset hairlines are what separate this from "blurred rectangle":
+ * a bright line along the top edge where light enters the pane and a dark one
+ * along the bottom where it exits. That pair is the whole illusion of a
+ * physical sheet of glass with thickness - without them a blur reads as a
+ * filter applied to the page, not as an object sitting above it.
+ *
+ * Borders are left to the consumer. Plain classes sit outside Tailwind's
+ * utility layer and therefore outrank it, so a `border` declared here could
+ * not be overridden by `border-b-0` on the element - a header that wants only
+ * a bottom edge would be stuck with four.
+ */
+.glass {
+  background-color: var(--color-surface);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass {
+    background-color: rgb(255 255 255 / 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      inset 0 -1px 0 rgb(20 24 31 / 0.04);
+  }
+}
+
+/*
+ * A border that illuminates under the cursor. `--spotlight-x`/`--spotlight-y`
+ * are written by a pointermove handler; with no handler attached the fallback
+ * parks the light off-canvas above the element, so the border simply stays
+ * unlit rather than glowing from a corner.
+ *
+ * Drawn as a masked pseudo-element rather than a `border-image`: the
+ * padding-box/border-box mask XOR punches the card's interior out of the
+ * gradient, leaving colour only in the 1px ring. `border-radius: inherit`
+ * keeps it aligned to whatever radius the host card uses.
+ */
+.spotlight {
+  position: relative;
+}
+
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 260ms var(--ease-out);
+  background: radial-gradient(
+    16rem circle at var(--spotlight-x, 50%) var(--spotlight-y, -50%),
+    var(--color-signal),
+    transparent 65%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.spotlight:hover::before,
+.spotlight:focus-within::before {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

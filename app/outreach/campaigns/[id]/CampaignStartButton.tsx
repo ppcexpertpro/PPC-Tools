@@ -27,7 +27,7 @@ export function CampaignStartButton({ campaignId }: { campaignId: string }) {
   };
 
   return (
-    <Button className="mt-8" loading={loading} onClick={handleStart}>
+    <Button className="mt-4" loading={loading} onClick={handleStart}>
       Start campaign
     </Button>
   );

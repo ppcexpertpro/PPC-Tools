@@ -52,6 +52,24 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function SearchIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </Icon>
+  );
+}
+
+export function EnterKeyIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 5v6a3 3 0 0 1-3 3H4" />
+      <path d="m8 10-4 4 4 4" />
+    </Icon>
+  );
+}
+
 export function CopyIcon(props: IconProps) {
   return (
     <Icon {...props}>

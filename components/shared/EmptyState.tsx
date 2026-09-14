@@ -6,6 +6,8 @@ export interface EmptyStateProps {
   title: string;
   description?: string;
   icon?: ReactNode;
+  /** The way out of the empty state - usually the one action that fills it. */
+  children?: ReactNode;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ export function EmptyState({
   title,
   description,
   icon = DEFAULT_ICON,
+  children,
   className,
 }: EmptyStateProps) {
   return (
@@ -34,6 +37,7 @@ export function EmptyState({
       {description && (
         <p className="max-w-sm text-sm text-ink-muted">{description}</p>
       )}
+      {children}
     </div>
   );
 }
