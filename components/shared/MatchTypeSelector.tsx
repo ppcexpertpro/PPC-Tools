@@ -83,7 +83,14 @@ export function MatchTypeSelector(props: MatchTypeSelectorProps) {
   return (
     <div role="group" aria-label={legend} className="flex flex-col gap-2">
       <p className="text-sm font-medium text-ink">{legend}</p>
-      <div className="flex flex-wrap gap-2">
+      {/*
+        A single column rather than `flex-wrap`. All three tools place this in
+        the same ~290px sidebar, where content-sized cards wrapped into a
+        ragged last row ("Broad | Phrase" then "Exact" alone) that read as a
+        layout accident rather than a choice. Stacking full-width also lets
+        the syntax examples line up in their own right-hand column.
+      */}
+      <div className="grid gap-2">
         {types.map((type) => {
           const definition = MATCH_TYPE_DEFINITIONS[type];
           const inputId = `${id}-${type}`;
@@ -131,7 +138,7 @@ export function MatchTypeSelector(props: MatchTypeSelectorProps) {
                 )}
               />
               <span className="text-ink">{definition.label}</span>
-              <span className="font-mono text-xs text-ink-faint">
+              <span className="ml-auto pl-2 font-mono text-xs text-ink-faint">
                 {definition.example}
               </span>
             </label>

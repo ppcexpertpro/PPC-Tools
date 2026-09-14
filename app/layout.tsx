@@ -71,7 +71,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // `data-scroll-behavior` tells Next the smooth scrolling in globals.css is
+    // intentional, so it suppresses it during route transitions rather than
+    // animating the jump to the top of each new page. Without it Next logs a
+    // dev advisory, and a scroll animation can still be in flight when
+    // something measures the page - which is the kind of race that shows up as
+    // an intermittent "element not found" in E2E runs.
+    <html lang="en" data-scroll-behavior="smooth">
       <body
         className={`${geist.variable} ${manrope.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >

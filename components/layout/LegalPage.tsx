@@ -24,7 +24,7 @@ export function LegalPage({
     <main
       id="main-content"
       tabIndex={-1}
-      className="mx-auto max-w-2xl px-4 py-12 outline-none sm:px-6 sm:py-16"
+      className="ambient-wash mx-auto max-w-2xl px-4 py-12 outline-none sm:px-6 sm:py-16"
     >
       <p className="animate-fade-up font-mono text-xs text-ink-faint">
         Last updated {updatedOn}

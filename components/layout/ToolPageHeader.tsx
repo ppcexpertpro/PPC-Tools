@@ -28,7 +28,10 @@ export function ToolPageHeader({
   illustration,
 }: ToolPageHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-10">
+    // `ambient-wash` matches the outreach console's page headers - a single
+    // feathered radial of the accent behind the masthead, so the tool pages
+    // don't open on type against a flat fill while the console doesn't.
+    <div className="ambient-wash flex items-start justify-between gap-10">
       <div className="max-w-3xl">
         <h1 className="animate-fade-up font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
           {title}
