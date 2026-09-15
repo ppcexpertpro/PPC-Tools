@@ -27,9 +27,9 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: z.flattenError(parsed.error) }, { status: 400 });
   }
-  const { campaignId, emailColumn, rows } = parsed.data;
+  const { campaignId, emailColumn, fieldMapping, rows } = parsed.data;
 
-  const { valid, invalid } = validateContactRows(rows, emailColumn);
+  const { valid, invalid } = validateContactRows(rows, emailColumn, fieldMapping);
   const { toInsert, skippedExisting, skippedSuppressed } = await dedupeContacts(valid);
 
   const insertedIds: string[] = [];

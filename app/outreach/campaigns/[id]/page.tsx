@@ -144,7 +144,7 @@ export default async function CampaignStatusPage({ params }: { params: Promise<{
     const result = await runPoolPreflight({
       senderDomains,
       trustedDomains,
-      dkimSelector: "default",
+      dkimSelector: "hostingermail1",
       postalAddress: campaign.postalAddress,
       templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
       contacts: enrolledContacts.map((c) => ({ ...c, fields: { ...c.fields, unsubscribe_token: "placeholder" } })),

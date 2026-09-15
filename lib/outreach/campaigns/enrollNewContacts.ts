@@ -76,7 +76,7 @@ export async function planCampaignEnrollment(campaign: CampaignForScheduling): P
   const preflight = await runPoolPreflight({
     senderDomains,
     trustedDomains,
-    dkimSelector: "default",
+    dkimSelector: "hostingermail1",
     postalAddress: campaign.postalAddress,
     templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
     // unsubscribe_token is synthesized by the worker at send time (see

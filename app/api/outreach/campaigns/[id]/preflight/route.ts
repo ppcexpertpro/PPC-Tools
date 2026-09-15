@@ -33,7 +33,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/outreach/ca
   const result = await runPoolPreflight({
     senderDomains,
     trustedDomains,
-    dkimSelector: "default",
+    dkimSelector: "hostingermail1",
     postalAddress: campaign.postalAddress,
     templates: steps.flatMap((step) => [step.subjectTemplate, step.bodyTemplate]),
     // unsubscribe_token is synthesized by the worker at send time (see

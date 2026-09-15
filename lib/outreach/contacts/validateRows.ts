@@ -13,6 +13,11 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function validateContactRows(
   rows: Record<string, string>[],
   emailColumn: string,
+  /** Maps a raw CSV header to the merge-field key it should be stored
+   * under (e.g. "Name " -> "first_name"). A header missing from this map
+   * falls back to its own name; a header mapped to "" is dropped, letting
+   * the caller skip columns that aren't merge fields. */
+  fieldMapping: Record<string, string> = {},
 ): ContactValidationResult {
   const valid: ContactRowInput[] = [];
   const invalid: ContactValidationResult["invalid"] = [];
@@ -38,7 +43,10 @@ export function validateContactRows(
 
     const fields: Record<string, string> = {};
     for (const [key, value] of Object.entries(row)) {
-      if (key !== emailColumn) fields[key] = value;
+      if (key === emailColumn) continue;
+      const mappedKey = (fieldMapping[key] ?? key).trim();
+      if (!mappedKey) continue;
+      fields[mappedKey] = value;
     }
     valid.push({ email, fields });
   });
