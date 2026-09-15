@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
+import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ function formatTimestamp(value: Date): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: CONSOLE_TIMEZONE,
   });
 }
 

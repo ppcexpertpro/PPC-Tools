@@ -235,7 +235,15 @@ export async function runTick(
   return result;
 }
 
-if (require.main === module) {
+/**
+ * Starts the recurring tick loop. Extracted so it can be started either by
+ * running this file directly (`npm run worker`, its own OS process) or from
+ * `instrumentation.ts` inside the same process as the web server - the
+ * latter is what makes sends actually happen on a host that only runs a
+ * single Node process (e.g. most PaaS/shared Node hosting), where a second
+ * standalone worker process was never going to run.
+ */
+export function startTickLoop(): void {
   console.log(`Outreach worker started, ticking every ${TICK_INTERVAL_MS / 1000}s`);
   const loop = async () => {
     try {
@@ -250,4 +258,8 @@ if (require.main === module) {
     }
   };
   void loop();
+}
+
+if (require.main === module) {
+  startTickLoop();
 }

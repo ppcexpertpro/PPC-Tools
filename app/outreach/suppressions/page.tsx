@@ -7,6 +7,7 @@ import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { BlueprintCard } from "@/components/outreach/BlueprintCard";
 import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
+import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
 import { SuppressionForm } from "./SuppressionForm";
 import { RemoveSuppressionButton } from "./RemoveSuppressionButton";
 
@@ -70,7 +71,7 @@ export default async function SuppressionsPage({ searchParams }: { searchParams:
                     dateTime={new Date(row.createdAt).toISOString()}
                     className="font-mono text-xs text-ink-faint"
                   >
-                    {new Date(row.createdAt).toLocaleDateString()}
+                    {new Date(row.createdAt).toLocaleDateString(undefined, { timeZone: CONSOLE_TIMEZONE })}
                   </time>
                 </div>
               </div>

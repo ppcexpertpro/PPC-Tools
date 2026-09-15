@@ -9,11 +9,14 @@ import {
   getMailboxHealthRows,
   getCampaignPerformanceRows,
   getSentVolumeTrend,
+  getWorkerHeartbeats,
   type MailboxHealthRow,
   type CampaignPerformanceRow,
+  type HeartbeatStatus,
 } from "@/lib/outreach/dashboard/queries";
 import { campaignNeedsAttention, campaignBounceRatio } from "@/lib/outreach/campaigns/attention";
 import { getRecentReplies } from "@/lib/outreach/replies/queries";
+import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
 
 export const metadata = { title: "Dashboard | PPC Keyword Utilities Suite" };
 
@@ -82,12 +85,31 @@ interface AttentionItem {
   id: string;
   title: string;
   detail: string;
-  href: string;
-  actionLabel: string;
+  /** Omitted for items with no in-app page to send the operator to - e.g. a
+   * stopped background process, which needs restarting on the host, not a
+   * click here. */
+  href?: string;
+  actionLabel?: string;
 }
 
-function buildAttention(mailboxRows: MailboxHealthRow[], campaignRows: CampaignPerformanceRow[]): AttentionItem[] {
+function buildAttention(
+  mailboxRows: MailboxHealthRow[],
+  campaignRows: CampaignPerformanceRow[],
+  heartbeats: HeartbeatStatus[],
+): AttentionItem[] {
   const items: AttentionItem[] = [];
+
+  for (const heartbeat of heartbeats) {
+    if (heartbeat.healthy) continue;
+    items.push({
+      id: `process-${heartbeat.process}`,
+      title: `${heartbeat.process} not running`,
+      detail:
+        heartbeat.secondsAgo === null
+          ? "Has never checked in - nothing sends or gets polled until it starts."
+          : `Last checked in ${formatAge(heartbeat.secondsAgo)}.`,
+    });
+  }
 
   for (const mailbox of mailboxRows) {
     if (mailbox.health === "healthy") continue;
@@ -121,15 +143,22 @@ function startOfToday(): Date {
   return start;
 }
 
+function formatAge(secondsAgo: number | null): string {
+  if (secondsAgo === null) return "never run";
+  if (secondsAgo < 60) return `${secondsAgo}s ago`;
+  return `${Math.round(secondsAgo / 60)}m ago`;
+}
+
 export default async function DashboardPage() {
-  const [mailboxRows, campaignRows, sentTrend, recentReplies] = await Promise.all([
+  const [mailboxRows, campaignRows, sentTrend, recentReplies, heartbeats] = await Promise.all([
     getMailboxHealthRows(),
     getCampaignPerformanceRows(),
     getSentVolumeTrend(),
     getRecentReplies(startOfToday()),
+    getWorkerHeartbeats(),
   ]);
 
-  const attention = buildAttention(mailboxRows, campaignRows);
+  const attention = buildAttention(mailboxRows, campaignRows, [heartbeats.worker, heartbeats.poller]);
 
   const activeCampaigns = campaignRows.filter((c) => c.status === "active").length;
   const sentToday = mailboxRows.reduce((sum, m) => sum + m.sentToday, 0);
@@ -152,6 +181,21 @@ export default async function DashboardPage() {
         title="Deliverability"
         description="Sending health across every mailbox and campaign. If the worker isn't running, nothing below moves."
       />
+
+      <section className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {[heartbeats.worker, heartbeats.poller].map((heartbeat) => (
+          <div
+            key={heartbeat.process}
+            className="flex items-center gap-2.5 border border-border bg-surface px-4 py-3"
+          >
+            <span
+              className={`h-1.5 w-1.5 flex-none rounded-full ${heartbeat.healthy ? "bg-signal" : "bg-danger"}`}
+            />
+            <span className="text-[13px] font-medium capitalize">{heartbeat.process}</span>
+            <span className="ml-auto font-mono text-[11px] text-ink-faint">{formatAge(heartbeat.secondsAgo)}</span>
+          </div>
+        ))}
+      </section>
 
       <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Instrument
@@ -205,12 +249,14 @@ export default async function DashboardPage() {
                   <div className="text-sm font-medium">{item.title}</div>
                   <div className="mt-px text-xs text-ink-muted">{item.detail}</div>
                 </div>
-                <Link
-                  href={item.href}
-                  className="border border-border px-2.5 py-1 text-xs text-ink transition-colors duration-200 ease-out hover:bg-paper"
-                >
-                  {item.actionLabel}
-                </Link>
+                {item.href && item.actionLabel && (
+                  <Link
+                    href={item.href}
+                    className="border border-border px-2.5 py-1 text-xs text-ink transition-colors duration-200 ease-out hover:bg-paper"
+                  >
+                    {item.actionLabel}
+                  </Link>
+                )}
               </div>
             ))
           )}
@@ -236,7 +282,11 @@ export default async function DashboardPage() {
                 className="flex items-baseline gap-3 border-b border-border px-4 py-2.5 text-sm last:border-0 hover:bg-ink/[0.03]"
               >
                 <span className="w-[42px] flex-none text-[11px] text-ink-faint">
-                  {new Date(reply.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(reply.createdAt).toLocaleTimeString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: CONSOLE_TIMEZONE,
+                  })}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13.5px] font-medium">{reply.contactEmail}</div>

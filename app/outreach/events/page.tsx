@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
+import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
 
 export const metadata = { title: "Events | PPC Keyword Utilities Suite" };
 export const dynamic = "force-dynamic";
@@ -119,7 +120,7 @@ export default async function EventsPage({
                   dateTime={new Date(row.createdAt).toISOString()}
                   className="font-mono text-xs text-ink-faint"
                 >
-                  {new Date(row.createdAt).toLocaleString()}
+                  {new Date(row.createdAt).toLocaleString(undefined, { timeZone: CONSOLE_TIMEZONE })}
                 </time>
               </div>
 

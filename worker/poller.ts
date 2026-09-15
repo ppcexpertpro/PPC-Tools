@@ -194,7 +194,8 @@ async function handleBounce(mailboxId: string, dsnSource: string): Promise<numbe
   return count;
 }
 
-if (require.main === module) {
+/** See worker/tick.ts's startTickLoop for why this is exported. */
+export function startPollLoop(): void {
   console.log(`Outreach poller started, polling every ${POLL_INTERVAL_MS / 1000}s`);
   const loop = async () => {
     try {
@@ -209,4 +210,8 @@ if (require.main === module) {
     }
   };
   void loop();
+}
+
+if (require.main === module) {
+  startPollLoop();
 }

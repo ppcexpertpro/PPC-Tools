@@ -12,6 +12,7 @@ import { CampaignPauseResumeButton } from "./CampaignPauseResumeButton";
 import { ImportContactsForm } from "./ImportContactsForm";
 import { StatusPoller } from "./StatusPoller";
 import { runPoolPreflight, summarizePoolDomains } from "@/lib/outreach/preflight/pool";
+import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
 
 // Explicit even though the [id] segment already forces dynamic rendering by
 // default (no generateStaticParams here) — see app/outreach/mailboxes/page.tsx.
@@ -31,7 +32,13 @@ const FUNNEL_COLORS: Record<string, string> = {
 
 function formatTimestamp(value: Date | null): string {
   if (!value) return "—";
-  return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: CONSOLE_TIMEZONE,
+  });
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
