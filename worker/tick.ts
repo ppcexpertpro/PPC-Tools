@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { and, asc, eq, isNotNull, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, runAtomic } from "@/db/client";
 import { campaigns, contacts, enrollments, mailboxes, messages, events, sequenceSteps, workerHeartbeats } from "@/db/schema";
 import { decrypt, loadEncryptionKey } from "@/lib/outreach/crypto";
@@ -31,21 +31,21 @@ export interface TickResult {
 /**
  * Claims due enrollments and sends them.
  *
- * Concurrency note: this assumes exactly one worker process ticking
- * sequentially (the loop below never starts a new tick until the previous
- * one has fully resolved) — that is Phase 1's whole design, one background
- * process per deployment. The claim query below is a plain SELECT, not
- * SELECT ... FOR UPDATE SKIP LOCKED: a row lock held only for the SELECT's
- * own implicit transaction is released before the (slow, network-bound)
- * send happens, so it would not actually prevent a second concurrent
- * *worker process* from claiming the same row — it would just be
- * misleading ceremony. If this is ever scaled to multiple worker
- * processes, the claim step needs redesigning as a single atomic
- * claim-and-mark statement (e.g. `UPDATE ... FROM (SELECT ... FOR UPDATE
- * SKIP LOCKED) ... RETURNING`) instead. `createSmtpTransportClient`/
- * `createGmailTransportClient` are injectable so this can be
- * integration-tested against a real database without a real SMTP server or
- * Google account.
+ * Concurrency note: the claim below is a single atomic `UPDATE ... FROM
+ * (SELECT ... FOR UPDATE SKIP LOCKED) ... RETURNING` statement, not a plain
+ * SELECT - it marks each row claimed (by nulling `nextSendAt`, which also
+ * drops it out of the WHERE clause) in the same statement that reads it, so
+ * a second worker process ticking concurrently physically cannot claim the
+ * same row: SKIP LOCKED makes it skip rows the first process is
+ * mid-claiming, and even without that it would just block until the first
+ * claim's implicit transaction commits, then re-check the WHERE clause and
+ * find `nextSendAt` already null. This replaced a plain SELECT that let two
+ * concurrent worker processes (one from instrumentation.ts, one a leftover
+ * standalone `npm run worker`) both read the same due enrollment and both
+ * send it - see tests/integration/workerTick.test.ts's race-condition test.
+ * `createSmtpTransportClient`/`createGmailTransportClient` are injectable
+ * so this can be integration-tested against a real database without a real
+ * SMTP server or Google account.
  */
 export async function runTick(
   now: Date = new Date(),
@@ -55,50 +55,63 @@ export async function runTick(
   const encryptionKey = loadEncryptionKey();
   const unsubscribeSecret = loadUnsubscribeSecret();
 
-  const due = await db
-    .select({
-      enrollmentId: enrollments.id,
-      campaignId: enrollments.campaignId,
-      currentStep: enrollments.currentStep,
-      mailboxId: mailboxes.id,
-      mailboxProvider: mailboxes.provider,
-      mailboxCredentials: mailboxes.encryptedCredentials,
-      mailboxFromName: mailboxes.fromName,
-      mailboxFromEmail: mailboxes.fromEmail,
-      contactId: enrollments.contactId,
-      contactEmail: contacts.email,
-      contactFields: contacts.fields,
-      contactTimezone: contacts.timezone,
-      stepId: sequenceSteps.id,
-      subjectTemplate: sequenceSteps.subjectTemplate,
-      bodyTemplate: sequenceSteps.bodyTemplate,
-      baseIntervalSeconds: campaigns.baseIntervalSeconds,
-      businessHoursStart: campaigns.businessHoursStart,
-      businessHoursEnd: campaigns.businessHoursEnd,
-      businessDays: campaigns.businessDays,
-      domainThrottleLimit: campaigns.domainThrottleLimit,
-      mailboxDailyCap: mailboxes.dailyCap,
-      mailboxRampStartedAt: mailboxes.rampStartedAt,
-    })
-    .from(enrollments)
-    .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
-    .innerJoin(mailboxes, eq(mailboxes.id, enrollments.mailboxId))
-    .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
-    .innerJoin(
-      sequenceSteps,
-      and(eq(sequenceSteps.campaignId, campaigns.id), eq(sequenceSteps.stepOrder, enrollments.currentStep)),
+  const claimed = await db.execute<{ id: string }>(sql`
+    UPDATE enrollments
+    SET next_send_at = NULL
+    WHERE id IN (
+      SELECT e.id
+      FROM enrollments e
+      INNER JOIN campaigns c ON c.id = e.campaign_id
+      INNER JOIN mailboxes m ON m.id = e.mailbox_id
+      WHERE e.status = 'active'
+        AND c.status = 'active'
+        AND m.health = 'healthy'
+        AND e.next_send_at IS NOT NULL
+        AND e.next_send_at <= ${now.toISOString()}
+      ORDER BY e.next_send_at ASC
+      LIMIT ${CLAIM_BATCH_SIZE}
+      FOR UPDATE OF e SKIP LOCKED
     )
-    .where(
-      and(
-        eq(enrollments.status, "active"),
-        eq(campaigns.status, "active"),
-        eq(mailboxes.health, "healthy"),
-        isNotNull(enrollments.nextSendAt),
-        lte(enrollments.nextSendAt, now),
-      ),
-    )
-    .orderBy(asc(enrollments.nextSendAt))
-    .limit(CLAIM_BATCH_SIZE);
+    RETURNING id
+  `);
+  const claimedIds = claimed.map((row) => row.id);
+
+  const due = claimedIds.length
+    ? await db
+        .select({
+          enrollmentId: enrollments.id,
+          campaignId: enrollments.campaignId,
+          currentStep: enrollments.currentStep,
+          mailboxId: mailboxes.id,
+          mailboxProvider: mailboxes.provider,
+          mailboxCredentials: mailboxes.encryptedCredentials,
+          mailboxFromName: mailboxes.fromName,
+          mailboxFromEmail: mailboxes.fromEmail,
+          contactId: enrollments.contactId,
+          contactEmail: contacts.email,
+          contactFields: contacts.fields,
+          contactTimezone: contacts.timezone,
+          stepId: sequenceSteps.id,
+          subjectTemplate: sequenceSteps.subjectTemplate,
+          bodyTemplate: sequenceSteps.bodyTemplate,
+          baseIntervalSeconds: campaigns.baseIntervalSeconds,
+          businessHoursStart: campaigns.businessHoursStart,
+          businessHoursEnd: campaigns.businessHoursEnd,
+          businessDays: campaigns.businessDays,
+          domainThrottleLimit: campaigns.domainThrottleLimit,
+          mailboxDailyCap: mailboxes.dailyCap,
+          mailboxRampStartedAt: mailboxes.rampStartedAt,
+        })
+        .from(enrollments)
+        .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
+        .innerJoin(mailboxes, eq(mailboxes.id, enrollments.mailboxId))
+        .innerJoin(contacts, eq(contacts.id, enrollments.contactId))
+        .innerJoin(
+          sequenceSteps,
+          and(eq(sequenceSteps.campaignId, campaigns.id), eq(sequenceSteps.stepOrder, enrollments.currentStep)),
+        )
+        .where(inArray(enrollments.id, claimedIds))
+    : [];
 
   const claimedMailboxes = new Set<string>();
   let attempted = 0;
@@ -106,8 +119,13 @@ export async function runTick(
   let failed = 0;
 
   for (const row of due) {
-    // One in-flight send per mailbox per tick.
-    if (claimedMailboxes.has(row.mailboxId)) continue;
+    // One in-flight send per mailbox per tick. This row was already
+    // claimed (its nextSendAt nulled) above; release the claim so the next
+    // tick picks it back up instead of leaving it stranded forever.
+    if (claimedMailboxes.has(row.mailboxId)) {
+      await db.update(enrollments).set({ nextSendAt: now }).where(eq(enrollments.id, row.enrollmentId));
+      continue;
+    }
     claimedMailboxes.add(row.mailboxId);
     attempted += 1;
 

@@ -262,6 +262,55 @@ describe("worker tick (integration)", () => {
     expect(sentMessageRows[0].providerThreadId).toBe("fake-thread-id");
   });
 
+  it("does not double-send when two ticks race on the same due enrollment", async () => {
+    // Regression test: production ran two worker processes concurrently
+    // (one launched via instrumentation.ts in-process, one as a leftover
+    // standalone `npm run worker`) and every send went out twice - both
+    // processes' runTick() read the same due enrollment via the plain
+    // SELECT claim query before either had recorded a message for it.
+    const key = loadEncryptionKey();
+    const credentials = encrypt(
+      JSON.stringify({ host: "localhost", port: 1025, secure: false, user: "", pass: "" }),
+      key,
+    );
+
+    const [mailbox] = await db
+      .insert(mailboxes)
+      .values({ provider: "smtp", fromName: "Jane", fromEmail: "jane@example.com", encryptedCredentials: credentials, dailyCap: 50 })
+      .returning();
+
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({ name: "Race condition test", postalAddress: "123 Main St", status: "active" })
+      .returning();
+    await db.insert(campaignMailboxes).values({ campaignId: campaign.id, mailboxId: mailbox.id });
+    await db.insert(sequenceSteps).values({
+      campaignId: campaign.id,
+      stepOrder: 1,
+      subjectTemplate: "Hi {{first_name}}",
+      bodyTemplate: "Hello {{first_name}}",
+      delayDays: 0,
+    });
+
+    const [contact] = await db.insert(contacts).values({ email: "recipient@example.com", fields: { first_name: "Alex" } }).returning();
+
+    const [enrollment] = await db
+      .insert(enrollments)
+      .values({ campaignId: campaign.id, contactId: contact.id, mailboxId: mailbox.id, status: "active", nextSendAt: new Date(Date.now() - 1000) })
+      .returning();
+
+    const fakeTransport = createFakeTransport();
+    const now = new Date();
+    const [resultA, resultB] = await Promise.all([runTick(now, () => fakeTransport), runTick(now, () => fakeTransport)]);
+    const totalSent = resultA.sent + resultB.sent;
+
+    expect(totalSent).toBe(1);
+    expect(fakeTransport.sentMessages).toHaveLength(1);
+
+    const sentMessageRows = await db.select().from(messages).where(eq(messages.enrollmentId, enrollment.id));
+    expect(sentMessageRows).toHaveLength(1);
+  });
+
   it("does not claim an enrollment whose assigned mailbox is paused", async () => {
     const key = loadEncryptionKey();
     const credentials = encrypt(JSON.stringify({ host: "localhost", port: 1025, secure: false, user: "", pass: "" }), key);
