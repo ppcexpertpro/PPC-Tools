@@ -28,6 +28,196 @@ export interface TickResult {
   failed: number;
 }
 
+export interface EnrollmentSendRow {
+  enrollmentId: string;
+  campaignId: string;
+  currentStep: number;
+  mailboxId: string;
+  mailboxProvider: string;
+  mailboxCredentials: string;
+  mailboxFromName: string;
+  mailboxFromEmail: string;
+  contactId: string;
+  contactEmail: string;
+  contactFields: Record<string, string>;
+  contactTimezone: string;
+  stepId: string | null;
+  subjectTemplate: string;
+  bodyTemplate: string;
+  baseIntervalSeconds: number;
+  businessHoursStart: number;
+  businessHoursEnd: number;
+  businessDays: number[];
+  domainThrottleLimit: number;
+  mailboxDailyCap: number;
+  mailboxRampStartedAt: Date | null;
+}
+
+export interface SendEnrollmentContext {
+  now: Date;
+  encryptionKey: Buffer;
+  unsubscribeSecret: Buffer;
+  createSmtpTransportClient: (credentials: SmtpCredentials) => Transport;
+  createGmailTransportClient: (credentials: GoogleOAuthCredentials) => Transport;
+}
+
+/**
+ * Sends one already-claimed enrollment and persists the result (message
+ * row, next-step scheduling or completion, and a message_sent/send_failed
+ * event) - the same logic `runTick` runs per due row, extracted so a
+ * single-enrollment "send now" action (see
+ * app/api/outreach/enrollments/[id]/send-now/route.ts) can reuse it without
+ * duplicating the decrypt/render/send/schedule sequence. Returns whether
+ * the send succeeded; never throws (failures are caught and recorded the
+ * same way `runTick` does).
+ */
+export async function sendEnrollment(row: EnrollmentSendRow, ctx: SendEnrollmentContext): Promise<boolean> {
+  const { now, encryptionKey, unsubscribeSecret, createSmtpTransportClient, createGmailTransportClient } = ctx;
+  try {
+    const credentials = parseMailboxCredentials(decrypt(row.mailboxCredentials, encryptionKey));
+
+    let transport: Transport;
+    if (row.mailboxProvider === "gmail_oauth") {
+      if (!credentials.oauth) throw new Error(`Mailbox ${row.mailboxId} is gmail_oauth but has no oauth credentials.`);
+      transport = createGmailTransportClient(credentials.oauth);
+    } else {
+      if (!credentials.smtp) throw new Error(`Mailbox ${row.mailboxId} is not gmail_oauth but has no smtp credentials.`);
+      transport = createSmtpTransportClient(credentials.smtp);
+    }
+
+    const priorMessages = await db
+      .select({ rfcMessageId: messages.rfcMessageId, providerThreadId: messages.providerThreadId })
+      .from(messages)
+      .where(eq(messages.enrollmentId, row.enrollmentId))
+      .orderBy(asc(messages.sentAt));
+    const threadHeaders = buildThreadHeaders(priorMessages.map((m) => m.rfcMessageId));
+    const providerThreadId = priorMessages[0]?.providerThreadId ?? undefined;
+
+    const unsubscribeToken = signUnsubscribeToken(row.enrollmentId, unsubscribeSecret);
+    const fields = { ...row.contactFields, unsubscribe_token: unsubscribeToken };
+    const subject = renderTemplate(row.subjectTemplate, fields);
+    const text = renderTemplate(row.bodyTemplate, fields);
+
+    const result = await transport.send({
+      to: row.contactEmail,
+      fromName: row.mailboxFromName,
+      fromEmail: row.mailboxFromEmail,
+      subject,
+      text,
+      inReplyTo: threadHeaders.inReplyTo,
+      references: threadHeaders.references,
+      threadId: providerThreadId,
+    });
+
+    const [nextStep] = await db
+      .select({ delayDays: sequenceSteps.delayDays })
+      .from(sequenceSteps)
+      .where(and(eq(sequenceSteps.campaignId, row.campaignId), eq(sequenceSteps.stepOrder, row.currentStep + 1)));
+
+    // Counted here, before the send below is recorded, deliberately -
+    // querying through countSentByMailboxToday/countSentToDomainLast24h
+    // (which use the module-level `db`, not the `tx` below) from *inside*
+    // runAtomic would be a transaction-visibility trap: in production
+    // it's a different connection and correctly wouldn't see the
+    // not-yet-committed insert, but in test mode runAtomic's passthrough
+    // makes `tx` literally the same connection as `db`, which *would*
+    // see its own uncommitted write - the same code would silently count
+    // differently between prod and test. Querying before the insert
+    // exists at all sidesteps that entirely; the explicit `+ 1` below
+    // accounts for the send about to be recorded.
+    const [sentByMailboxToday, sentToDomainLast24h] = nextStep
+      ? await Promise.all([
+          countSentByMailboxToday(row.mailboxId, now),
+          countSentToDomainLast24h(row.mailboxId, extractDomain(row.contactEmail), now),
+        ])
+      : [0, 0];
+
+    await runAtomic(async (tx) => {
+      await tx.insert(messages).values({
+        enrollmentId: row.enrollmentId,
+        stepId: row.stepId,
+        rfcMessageId: result.rfcMessageId,
+        providerThreadId: result.providerThreadId ?? null,
+        status: "sent",
+      });
+
+      if (nextStep) {
+        const decision = computeNextSendAt({
+          now,
+          timezone: row.contactTimezone,
+          baseIntervalSeconds: nextStep.delayDays * SECONDS_PER_DAY,
+          businessHours: {
+            startHour: row.businessHoursStart,
+            endHour: row.businessHoursEnd,
+            days: row.businessDays,
+          },
+          mailbox: { dailyCap: row.mailboxDailyCap, rampStartedAt: row.mailboxRampStartedAt },
+          // +1 - sentByMailboxToday/sentToDomainLast24h above were
+          // counted before the send below was recorded, so they don't
+          // include it yet.
+          sentByMailboxToday: sentByMailboxToday + 1,
+          sentToDomainLast24h: sentToDomainLast24h + 1,
+          domainThrottleLimit: row.domainThrottleLimit,
+        });
+        const nextSendAt = decision.allowed ? decision.nextSendAt : decision.retryAt;
+        await tx
+          .update(enrollments)
+          .set({ status: "active", sentAt: now, currentStep: row.currentStep + 1, nextSendAt })
+          .where(eq(enrollments.id, row.enrollmentId));
+      } else {
+        await tx
+          .update(enrollments)
+          .set({ status: "completed", sentAt: now, nextSendAt: null })
+          .where(eq(enrollments.id, row.enrollmentId));
+      }
+
+      await tx.insert(events).values({
+        type: "message_sent",
+        payload: { enrollmentId: row.enrollmentId, rfcMessageId: result.rfcMessageId, step: row.currentStep },
+      });
+    });
+
+    return true;
+  } catch (error) {
+    await db.insert(events).values({
+      type: "send_failed",
+      payload: { enrollmentId: row.enrollmentId, error: error instanceof Error ? error.message : String(error) },
+    });
+    await db.update(enrollments).set({ status: "failed" }).where(eq(enrollments.id, row.enrollmentId));
+    return false;
+  }
+}
+
+/** The join every due/claimed enrollment row is shaped by - shared between
+ * `runTick`'s batch query and the single-row query the "send now" route
+ * uses. */
+export function enrollmentSendRowSelection() {
+  return {
+    enrollmentId: enrollments.id,
+    campaignId: enrollments.campaignId,
+    currentStep: enrollments.currentStep,
+    mailboxId: mailboxes.id,
+    mailboxProvider: mailboxes.provider,
+    mailboxCredentials: mailboxes.encryptedCredentials,
+    mailboxFromName: mailboxes.fromName,
+    mailboxFromEmail: mailboxes.fromEmail,
+    contactId: enrollments.contactId,
+    contactEmail: contacts.email,
+    contactFields: contacts.fields,
+    contactTimezone: contacts.timezone,
+    stepId: sequenceSteps.id,
+    subjectTemplate: sequenceSteps.subjectTemplate,
+    bodyTemplate: sequenceSteps.bodyTemplate,
+    baseIntervalSeconds: campaigns.baseIntervalSeconds,
+    businessHoursStart: campaigns.businessHoursStart,
+    businessHoursEnd: campaigns.businessHoursEnd,
+    businessDays: campaigns.businessDays,
+    domainThrottleLimit: campaigns.domainThrottleLimit,
+    mailboxDailyCap: mailboxes.dailyCap,
+    mailboxRampStartedAt: mailboxes.rampStartedAt,
+  } as const;
+}
+
 /**
  * Claims due enrollments and sends them.
  *
@@ -78,30 +268,7 @@ export async function runTick(
 
   const due = claimedIds.length
     ? await db
-        .select({
-          enrollmentId: enrollments.id,
-          campaignId: enrollments.campaignId,
-          currentStep: enrollments.currentStep,
-          mailboxId: mailboxes.id,
-          mailboxProvider: mailboxes.provider,
-          mailboxCredentials: mailboxes.encryptedCredentials,
-          mailboxFromName: mailboxes.fromName,
-          mailboxFromEmail: mailboxes.fromEmail,
-          contactId: enrollments.contactId,
-          contactEmail: contacts.email,
-          contactFields: contacts.fields,
-          contactTimezone: contacts.timezone,
-          stepId: sequenceSteps.id,
-          subjectTemplate: sequenceSteps.subjectTemplate,
-          bodyTemplate: sequenceSteps.bodyTemplate,
-          baseIntervalSeconds: campaigns.baseIntervalSeconds,
-          businessHoursStart: campaigns.businessHoursStart,
-          businessHoursEnd: campaigns.businessHoursEnd,
-          businessDays: campaigns.businessDays,
-          domainThrottleLimit: campaigns.domainThrottleLimit,
-          mailboxDailyCap: mailboxes.dailyCap,
-          mailboxRampStartedAt: mailboxes.rampStartedAt,
-        })
+        .select(enrollmentSendRowSelection())
         .from(enrollments)
         .innerJoin(campaigns, eq(campaigns.id, enrollments.campaignId))
         .innerJoin(mailboxes, eq(mailboxes.id, enrollments.mailboxId))
@@ -129,119 +296,15 @@ export async function runTick(
     claimedMailboxes.add(row.mailboxId);
     attempted += 1;
 
-    try {
-      const credentials = parseMailboxCredentials(decrypt(row.mailboxCredentials, encryptionKey));
-
-      let transport: Transport;
-      if (row.mailboxProvider === "gmail_oauth") {
-        if (!credentials.oauth) throw new Error(`Mailbox ${row.mailboxId} is gmail_oauth but has no oauth credentials.`);
-        transport = createGmailTransportClient(credentials.oauth);
-      } else {
-        if (!credentials.smtp) throw new Error(`Mailbox ${row.mailboxId} is not gmail_oauth but has no smtp credentials.`);
-        transport = createSmtpTransportClient(credentials.smtp);
-      }
-
-      const priorMessages = await db
-        .select({ rfcMessageId: messages.rfcMessageId, providerThreadId: messages.providerThreadId })
-        .from(messages)
-        .where(eq(messages.enrollmentId, row.enrollmentId))
-        .orderBy(asc(messages.sentAt));
-      const threadHeaders = buildThreadHeaders(priorMessages.map((m) => m.rfcMessageId));
-      const providerThreadId = priorMessages[0]?.providerThreadId ?? undefined;
-
-      const unsubscribeToken = signUnsubscribeToken(row.enrollmentId, unsubscribeSecret);
-      const fields = { ...row.contactFields, unsubscribe_token: unsubscribeToken };
-      const subject = renderTemplate(row.subjectTemplate, fields);
-      const text = renderTemplate(row.bodyTemplate, fields);
-
-      const result = await transport.send({
-        to: row.contactEmail,
-        fromName: row.mailboxFromName,
-        fromEmail: row.mailboxFromEmail,
-        subject,
-        text,
-        inReplyTo: threadHeaders.inReplyTo,
-        references: threadHeaders.references,
-        threadId: providerThreadId,
-      });
-
-      const [nextStep] = await db
-        .select({ delayDays: sequenceSteps.delayDays })
-        .from(sequenceSteps)
-        .where(and(eq(sequenceSteps.campaignId, row.campaignId), eq(sequenceSteps.stepOrder, row.currentStep + 1)));
-
-      // Counted here, before the send below is recorded, deliberately -
-      // querying through countSentByMailboxToday/countSentToDomainLast24h
-      // (which use the module-level `db`, not the `tx` below) from *inside*
-      // runAtomic would be a transaction-visibility trap: in production
-      // it's a different connection and correctly wouldn't see the
-      // not-yet-committed insert, but in test mode runAtomic's passthrough
-      // makes `tx` literally the same connection as `db`, which *would*
-      // see its own uncommitted write - the same code would silently count
-      // differently between prod and test. Querying before the insert
-      // exists at all sidesteps that entirely; the explicit `+ 1` below
-      // accounts for the send about to be recorded.
-      const [sentByMailboxToday, sentToDomainLast24h] = nextStep
-        ? await Promise.all([
-            countSentByMailboxToday(row.mailboxId, now),
-            countSentToDomainLast24h(row.mailboxId, extractDomain(row.contactEmail), now),
-          ])
-        : [0, 0];
-
-      await runAtomic(async (tx) => {
-        await tx.insert(messages).values({
-          enrollmentId: row.enrollmentId,
-          stepId: row.stepId,
-          rfcMessageId: result.rfcMessageId,
-          providerThreadId: result.providerThreadId ?? null,
-          status: "sent",
-        });
-
-        if (nextStep) {
-          const decision = computeNextSendAt({
-            now,
-            timezone: row.contactTimezone,
-            baseIntervalSeconds: nextStep.delayDays * SECONDS_PER_DAY,
-            businessHours: {
-              startHour: row.businessHoursStart,
-              endHour: row.businessHoursEnd,
-              days: row.businessDays,
-            },
-            mailbox: { dailyCap: row.mailboxDailyCap, rampStartedAt: row.mailboxRampStartedAt },
-            // +1 - sentByMailboxToday/sentToDomainLast24h above were
-            // counted before the send below was recorded, so they don't
-            // include it yet.
-            sentByMailboxToday: sentByMailboxToday + 1,
-            sentToDomainLast24h: sentToDomainLast24h + 1,
-            domainThrottleLimit: row.domainThrottleLimit,
-          });
-          const nextSendAt = decision.allowed ? decision.nextSendAt : decision.retryAt;
-          await tx
-            .update(enrollments)
-            .set({ status: "active", sentAt: now, currentStep: row.currentStep + 1, nextSendAt })
-            .where(eq(enrollments.id, row.enrollmentId));
-        } else {
-          await tx
-            .update(enrollments)
-            .set({ status: "completed", sentAt: now, nextSendAt: null })
-            .where(eq(enrollments.id, row.enrollmentId));
-        }
-
-        await tx.insert(events).values({
-          type: "message_sent",
-          payload: { enrollmentId: row.enrollmentId, rfcMessageId: result.rfcMessageId, step: row.currentStep },
-        });
-      });
-
-      sent += 1;
-    } catch (error) {
-      failed += 1;
-      await db.insert(events).values({
-        type: "send_failed",
-        payload: { enrollmentId: row.enrollmentId, error: error instanceof Error ? error.message : String(error) },
-      });
-      await db.update(enrollments).set({ status: "failed" }).where(eq(enrollments.id, row.enrollmentId));
-    }
+    const ok = await sendEnrollment(row, {
+      now,
+      encryptionKey,
+      unsubscribeSecret,
+      createSmtpTransportClient,
+      createGmailTransportClient,
+    });
+    if (ok) sent += 1;
+    else failed += 1;
   }
 
   const result = { attempted, sent, failed };

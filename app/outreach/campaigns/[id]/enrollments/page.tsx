@@ -8,19 +8,20 @@ import { PageShell, PageHeader } from "@/components/outreach/PageShell";
 import { Pagination } from "@/components/outreach/Pagination";
 import { PAGE_SIZE, parsePageParam, pageOffset } from "@/lib/outreach/pagination";
 import { CONSOLE_TIMEZONE } from "@/lib/outreach/console/timezone";
+import { SendNowButton } from "./SendNowButton";
 
 export const dynamic = "force-dynamic";
 
 const TH = "px-4 py-2.5 font-mono text-[0.625rem] font-medium uppercase tracking-wider text-ink-faint";
 const TD = "px-4 py-3 align-top";
 
-function formatTimestamp(value: Date): string {
+function formatTimestamp(value: Date, timeZone: string = CONSOLE_TIMEZONE): string {
   return new Date(value).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: CONSOLE_TIMEZONE,
+    timeZone,
   });
 }
 
@@ -52,6 +53,7 @@ export default async function CampaignEnrollmentsPage({
       currentStep: enrollments.currentStep,
       nextSendAt: enrollments.nextSendAt,
       contactEmail: contacts.email,
+      contactTimezone: contacts.timezone,
       mailboxFromEmail: mailboxes.fromEmail,
     })
     .from(enrollments)
@@ -112,6 +114,7 @@ export default async function CampaignEnrollmentsPage({
                 <th className={TH}>Mailbox</th>
                 <th className={TH}>Next send</th>
                 <th className={TH}>Sent</th>
+                <th className={TH}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -128,8 +131,17 @@ export default async function CampaignEnrollmentsPage({
                       {row.currentStep}
                     </td>
                     <td className={`${TD} text-xs text-ink-faint`}>{row.mailboxFromEmail ?? "—"}</td>
-                    <td data-numeric className={`${TD} font-mono text-xs text-ink-muted`}>
-                      {row.nextSendAt ? formatTimestamp(row.nextSendAt) : "—"}
+                    <td data-numeric className={`${TD} font-mono text-xs`}>
+                      {row.nextSendAt ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-ink-muted">{formatTimestamp(row.nextSendAt)}</span>
+                          <span className="text-ink-faint">
+                            recipient: {formatTimestamp(row.nextSendAt, row.contactTimezone)} ({row.contactTimezone})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-ink-muted">—</span>
+                      )}
                     </td>
                     <td className={TD}>
                       {sent.length === 0 ? (
@@ -147,6 +159,9 @@ export default async function CampaignEnrollmentsPage({
                           ))}
                         </ul>
                       )}
+                    </td>
+                    <td className={TD}>
+                      {row.status === "active" && <SendNowButton enrollmentId={row.enrollmentId} />}
                     </td>
                   </tr>
                 );
