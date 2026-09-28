@@ -1,4 +1,8 @@
 // PRD §5.3: English stopword list used by the "Hide common words" filter.
+// Question words (how/what/why/where/when/who/which) and "without" are
+// deliberately NOT here: in search-term reports they signal informational
+// intent and are some of the most common negatives, so hiding them by
+// default buried exactly what users came to find.
 export const STOPWORDS = new Set([
   "a",
   "an",
@@ -14,7 +18,6 @@ export const STOPWORDS = new Set([
   "so",
   "yet",
   "with",
-  "without",
   "of",
   "in",
   "on",
@@ -90,11 +93,6 @@ export const STOPWORDS = new Set([
   "that",
   "these",
   "those",
-  "what",
-  "which",
-  "who",
-  "whom",
-  "whose",
   "as",
   "than",
   "too",
@@ -116,10 +114,6 @@ export const STOPWORDS = new Set([
   "off",
   "here",
   "there",
-  "when",
-  "where",
-  "why",
-  "how",
   "all",
   "any",
   "both",

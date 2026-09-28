@@ -149,4 +149,69 @@ describe("tokenizeAndCount", () => {
     ]);
     expect(result[2]?.map((row) => row.token)).toEqual(["running shoes"]);
   });
+
+  it("strips punctuation so 'shoes,' and '\"sale\"' count as plain words", () => {
+    const result = tokenizeAndCount(
+      ['running shoes, near me', 'shoes "sale"', "shoes (cheap)!"],
+      [1],
+      { hideStopwords: false, minLength: 1, minFrequency: 1 },
+    );
+
+    const tokens = result[1]?.map((row) => row.token) ?? [];
+    expect(tokens).toContain("sale");
+    expect(tokens).toContain("cheap");
+    expect(tokens).not.toContain("shoes,");
+    expect(tokens).not.toContain('"sale"');
+    expect(result[1]?.find((row) => row.token === "shoes")?.count).toBe(3);
+  });
+
+  it("splits hyphenated and slashed words into separate words", () => {
+    const result = tokenizeAndCount(["running-shoes repair/cleaning"], [1], {
+      hideStopwords: false,
+      minLength: 1,
+      minFrequency: 1,
+    });
+
+    expect(result[1]?.map((row) => row.token).sort()).toEqual([
+      "cleaning",
+      "repair",
+      "running",
+      "shoes",
+    ]);
+  });
+
+  it("keeps in-word apostrophes and ampersands, and non-English letters", () => {
+    const result = tokenizeAndCount(["don't at&t zapatos baratos 'quoted'"], [1], {
+      hideStopwords: false,
+      minLength: 1,
+      minFrequency: 1,
+    });
+
+    const tokens = result[1]?.map((row) => row.token) ?? [];
+    expect(tokens).toEqual(
+      expect.arrayContaining(["don't", "at&t", "zapatos", "baratos", "quoted"]),
+    );
+  });
+
+  it("never hides question words - they are classic informational negatives", () => {
+    const result = tokenizeAndCount(
+      ["how to clean shoes", "what are the best shoes", "why shoes squeak"],
+      [1],
+      { hideStopwords: true, minLength: 1, minFrequency: 1 },
+    );
+
+    const tokens = result[1]?.map((row) => row.token) ?? [];
+    expect(tokens).toEqual(expect.arrayContaining(["how", "what", "why"]));
+    expect(tokens).not.toContain("the");
+  });
+
+  it("defaults to a min length of 2 so short terms like 'tv' survive", () => {
+    const result = tokenizeAndCount(["shoes tv ad x"], [1], {
+      hideStopwords: false,
+    });
+
+    const tokens = result[1]?.map((row) => row.token) ?? [];
+    expect(tokens).toEqual(expect.arrayContaining(["tv", "ad"]));
+    expect(tokens).not.toContain("x");
+  });
 });

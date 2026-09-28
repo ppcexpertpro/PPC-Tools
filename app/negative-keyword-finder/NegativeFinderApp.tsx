@@ -72,7 +72,9 @@ export function NegativeFinderApp() {
 
   const [ngramSizes, setNgramSizes] = useState<NgramSize[]>([1]);
   const [hideStopwords, setHideStopwords] = useState(true);
-  const [minLength, setMinLength] = useState(3);
+  // 2, not 3: short negatives like "tv", "uk", "pc" or "5g" are common and
+  // were silently hidden. Single letters are still filtered out.
+  const [minLength, setMinLength] = useState(2);
   const [minFrequency, setMinFrequency] = useState(1);
 
   const [tokenizeResult, setTokenizeResult] =
@@ -416,9 +418,20 @@ export function NegativeFinderApp() {
         </div>
 
         <div className="flex flex-col gap-3 lg:sticky lg:top-4 lg:self-start">
-          <p className="text-sm font-medium text-ink">
-            Selected negatives ({selectedNegatives.length})
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">
+              Selected negatives ({selectedNegatives.length})
+            </p>
+            {selectedNegatives.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedNegatives([])}
+                className="text-sm text-ink-muted underline underline-offset-2 hover:text-ink"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
           {selectedNegatives.length === 0 ? (
             <p className="text-sm text-ink-muted">
               Click tokens in the frequency table to add them here.

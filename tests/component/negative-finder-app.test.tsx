@@ -100,6 +100,39 @@ describe("NegativeFinderApp", () => {
     expect(tokenButton).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("'Clear all' empties the selected negatives in one click", async () => {
+    render(<NegativeFinderApp />);
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("running shoes\nrunning boots");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^running, 2 occurrences/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^shoes,/i }));
+    expect(screen.getByText("Selected negatives (2)")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+
+    expect(screen.getByText("Selected negatives (0)")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear all" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows punctuation-free, short tokens like 'tv' by default", async () => {
+    render(<NegativeFinderApp />);
+    await userEvent.click(screen.getByLabelText("Paste search terms"));
+    await userEvent.paste("running shoes, tv ad");
+
+    expect(
+      await screen.findByRole("button", { name: /^shoes, 1 occurrence/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^tv, 1 occurrence/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^shoes,,/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("exports selected negatives formatted with the chosen match type", async () => {
     render(<NegativeFinderApp />);
     await userEvent.click(screen.getByLabelText("Paste search terms"));
