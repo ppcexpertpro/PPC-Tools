@@ -193,6 +193,20 @@ describe("tokenizeAndCount", () => {
     );
   });
 
+  it("keeps dots inside a word but trims them from the edges", () => {
+    const result = tokenizeAndCount(["windows 8.1 shoes."], [1], {
+      hideStopwords: false,
+      minLength: 1,
+      minFrequency: 1,
+    });
+
+    expect(result[1]?.map((row) => row.token).sort()).toEqual([
+      "8.1",
+      "shoes",
+      "windows",
+    ]);
+  });
+
   it("never hides question words - they are classic informational negatives", () => {
     const result = tokenizeAndCount(
       ["how to clean shoes", "what are the best shoes", "why shoes squeak"],

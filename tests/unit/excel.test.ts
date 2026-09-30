@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { allColumnValues } from "@/lib/file-parsing/columns";
 import { parseExcel } from "@/lib/file-parsing/excel";
 
 function createXlsxFile(
@@ -33,8 +34,8 @@ describe("parseExcel", () => {
     expect(result.headers).toEqual(["Search Term", "Clicks"]);
     expect(result.sheetName).toBe("Sheet1");
     expect(result.rows).toEqual([
-      { "Search Term": "running shoes", Clicks: 10 },
-      { "Search Term": "hiking boots", Clicks: 5 },
+      { "Search Term": "running shoes", Clicks: "10" },
+      { "Search Term": "hiking boots", Clicks: "5" },
     ]);
   });
 
@@ -49,5 +50,45 @@ describe("parseExcel", () => {
     expect(result.sheetName).toBe("First");
     expect(result.headers).toEqual(["Search Term"]);
     expect(result.rows).toEqual([{ "Search Term": "shoes" }]);
+  });
+
+  it("lists every sheet name so the user can pick another sheet", async () => {
+    const file = createXlsxFile([
+      { name: "First", rows: [["Search Term"], ["shoes"]] },
+      { name: "Second", rows: [["Other"], ["kept"]] },
+    ]);
+
+    const result = await parseExcel(file);
+
+    expect(result.sheetNames).toEqual(["First", "Second"]);
+  });
+
+  it("reads the named sheet when one is given", async () => {
+    const file = createXlsxFile([
+      { name: "First", rows: [["Search Term"], ["shoes"]] },
+      { name: "Second", rows: [["Negative Keywords"], ["salary"], [2018]] },
+    ]);
+
+    const result = await parseExcel(file, "Second");
+
+    expect(result.sheetName).toBe("Second");
+    expect(result.headers).toEqual(["Negative Keywords"]);
+    // Numeric cells (years, "101") come back as text - callers lowercase them.
+    expect(result.rows).toEqual([
+      { "Negative Keywords": "salary" },
+      { "Negative Keywords": "2018" },
+    ]);
+  });
+});
+
+describe("allColumnValues", () => {
+  it("collects every non-empty cell, column by column", () => {
+    expect(
+      allColumnValues([
+        { General: "club", Adult: "xxx" },
+        { General: "clubs", Adult: "" },
+        { General: "", Adult: "nude" },
+      ]),
+    ).toEqual(["club", "clubs", "xxx", "nude"]);
   });
 });

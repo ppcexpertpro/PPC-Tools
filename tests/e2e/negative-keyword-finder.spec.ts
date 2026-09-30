@@ -15,6 +15,7 @@ test.describe("Negative Keyword Finder - paste path", () => {
       await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     }
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
 
     await expect(
       page.getByRole("heading", { level: 1, name: "Negative Keyword Finder" }),
@@ -32,9 +33,11 @@ test.describe("Negative Keyword Finder - paste path", () => {
     await expect(page.getByRole("button", { name: /^for,/i })).toHaveCount(0);
 
     await runningRow.click();
-    await expect(page.getByText("Selected negatives (1)")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Negative keywords: Selected 1" }),
+    ).toBeVisible();
 
-    await page.getByRole("button", { name: "Copy" }).click();
+    await page.getByRole("button", { name: "Copy all" }).click();
     await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
 
     if (browserName === "chromium") {
@@ -49,6 +52,7 @@ test.describe("Negative Keyword Finder - paste path", () => {
     page,
   }) => {
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
     await page.getByLabel("Paste search terms").fill("running shoes\nrunning boots");
     await expect(
       page.getByRole("button", { name: /^running,/i }),
@@ -71,7 +75,10 @@ test.describe("Negative Keyword Finder - paste path", () => {
     });
 
     await page.goto("/negative-keyword-finder");
-    const canaryTerm = "zzzunlikely-canary-search-term-zzz";
+    await page.getByRole("tab", { name: "Word frequency" }).click();
+    // No hyphens: those split into separate words, and the lookup below
+    // needs the canary to survive as a single token.
+    const canaryTerm = "zzzunlikelycanarysearchtermzzz";
     await page.getByLabel("Paste search terms").fill(canaryTerm);
     await expect(
       page.getByRole("button", { name: new RegExp(`^${canaryTerm},`, "i") }),
@@ -88,6 +95,7 @@ test.describe("Negative Keyword Finder - file upload path", () => {
     page,
   }) => {
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
 
     const csv = "Search Term,Clicks\nrunning shoes,10\nrunning boots,5\n";
     await page
@@ -108,6 +116,7 @@ test.describe("Negative Keyword Finder - file upload path", () => {
 
   test("rejects a file over the 10MB size cap", async ({ page }) => {
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
 
     await page.getByLabel(/upload a search-terms file/i).setInputFiles({
       name: "big.csv",
@@ -125,6 +134,7 @@ test.describe("Negative Keyword Finder - ambiguous column path", () => {
     page,
   }) => {
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
 
     const csv = "Query,Search Term\nrunning shoes,alt text\n";
     await page.getByLabel(/upload a search-terms file/i).setInputFiles({
@@ -148,10 +158,11 @@ test.describe("Negative Keyword Finder - ambiguous column path", () => {
 });
 
 test.describe("Negative Keyword Finder - export path", () => {
-  test("downloads the selected negatives as a .txt file with the chosen match type", async ({
+  test("downloads the selected negatives as a CSV with the chosen match type", async ({
     page,
   }) => {
     await page.goto("/negative-keyword-finder");
+    await page.getByRole("tab", { name: "Word frequency" }).click();
 
     await page
       .getByLabel("Paste search terms")
@@ -162,13 +173,47 @@ test.describe("Negative Keyword Finder - export path", () => {
     await page.locator("#match-type-exact").check();
 
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download .txt" }).click();
+    await page.getByRole("button", { name: "Export" }).click();
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toBe("negative-keywords.txt");
+    expect(download.suggestedFilename()).toBe("negative-keywords.csv");
     const stream = await download.createReadStream();
     const chunks: Buffer[] = [];
     for await (const chunk of stream) chunks.push(chunk as Buffer);
     expect(Buffer.concat(chunks).toString("utf-8")).toBe("[running]");
+  });
+});
+
+test.describe("Negative Keyword Finder - keyword list path", () => {
+  test("ticks keywords and words, then exports them as phrase match", async ({
+    page,
+  }) => {
+    await page.goto("/negative-keyword-finder");
+
+    await page
+      .getByLabel("Paste search terms")
+      .fill("games\nno charge\nno cost\nyoutube");
+    await expect(
+      page.getByRole("heading", { name: "Keywords: Found 4" }),
+    ).toBeVisible();
+
+    await page.getByRole("checkbox", { name: "no charge" }).check();
+    await page.getByRole("checkbox", { name: "youtube" }).check();
+    await expect(
+      page.getByRole("heading", { name: "Negative keywords: Selected 2" }),
+    ).toBeVisible();
+
+    await page.locator("#match-type-phrase").check();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export" }).click();
+    const download = await downloadPromise;
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    // CSV-escaped so Excel shows the quotes Google Ads needs for phrase match.
+    expect(Buffer.concat(chunks).toString("utf-8")).toBe(
+      '"""no charge"""\n"""youtube"""',
+    );
   });
 });

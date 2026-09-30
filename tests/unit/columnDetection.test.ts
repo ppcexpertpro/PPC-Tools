@@ -44,4 +44,34 @@ describe("detectSearchTermColumn", () => {
       status: "needs-selection",
     });
   });
+
+  it("recognises longer headers that name a keyword column", () => {
+    expect(detectSearchTermColumn(["Negative Keywords"])).toEqual({
+      status: "found",
+      column: "Negative Keywords",
+    });
+    expect(
+      detectSearchTermColumn(["Negative Keywords for Day spas PPC Account"]),
+    ).toEqual({
+      status: "found",
+      column: "Negative Keywords for Day spas PPC Account",
+    });
+  });
+
+  it("prefers an exact header over a longer one that merely mentions keywords", () => {
+    expect(detectSearchTermColumn(["Negative Keywords", "Keyword"])).toEqual({
+      status: "found",
+      column: "Keyword",
+    });
+  });
+
+  it("still asks when several longer headers could be the keyword column", () => {
+    expect(
+      detectSearchTermColumn([
+        "Negative Keywords",
+        "Search Terms Report",
+        "Root Keywords",
+      ]),
+    ).toEqual({ status: "needs-selection" });
+  });
 });

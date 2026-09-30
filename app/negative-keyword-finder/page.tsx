@@ -19,26 +19,25 @@ export default function NegativeKeywordFinderPage() {
       <ToolPageHeader
         illustration={negativeFinderArt}
         title="Negative Keyword Finder"
-        description="Paste search terms or upload a report (.csv, .xls, .xlsx, .txt) and mine it for negative keyword candidates by word frequency."
+        description="Paste keywords or upload a report (.csv, .xls, .xlsx, .txt), tick every keyword or word that doesn't fit, and export them as negatives."
         explainerSummary="How this works"
         explainerContent={
           <>
             <p>
-              Every row of your search-terms report is broken into words
-              (unigrams), word pairs (bigrams), and three-word phrases
-              (trigrams), then counted across the whole list - the words showing
-              up most often are usually the ones worth reviewing first.
+              Paste your keywords or upload a search-terms report. Every
+              keyword is listed with the words it is made of underneath, so you
+              can pick either the whole keyword or just one word.
             </p>
             <p>
-              Common words like &quot;a,&quot; &quot;the,&quot; and
-              &quot;for&quot; are hidden by default since they rarely make
-              useful negatives on their own - turn that off in the filter bar if
-              you want to see everything.
+              Tick everything that doesn&apos;t fit your product or service -
+              it collects in the Negative keywords panel. Choose Broad, Phrase,
+              or Exact match, then Copy all or Export and paste the list into
+              your campaign&apos;s negative keywords.
             </p>
             <p>
-              Click any token to add it to your selected negatives list, choose
-              Broad, Phrase, or Exact match, then copy or download the result to
-              paste into a new negative keyword list.
+              Working through a large report? Switch to Word frequency to see
+              which words and phrases come up most often across all your
+              search terms.
             </p>
           </>
         }

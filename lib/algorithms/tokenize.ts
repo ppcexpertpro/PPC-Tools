@@ -20,16 +20,16 @@ const DEFAULT_MIN_LENGTH = 2;
 const DEFAULT_MIN_FREQUENCY = 1;
 
 /**
- * Anything that isn't a letter, digit, apostrophe or ampersand separates
- * words - so "shoes," / "(cheap)" / '"sale"' collapse to the plain word and
- * "running-shoes" splits in two, instead of each becoming its own token.
- * Apostrophes/ampersands survive inside a word ("don't", "at&t") but are
- * trimmed from the edges ('quoted').
+ * Anything that isn't a letter, digit, apostrophe, ampersand or dot
+ * separates words - so "shoes," / "(cheap)" / '"sale"' collapse to the plain
+ * word and "running-shoes" splits in two, instead of each becoming its own
+ * token. Apostrophes, ampersands and dots survive inside a word ("don't",
+ * "at&t", "windows 8.1") but are trimmed from the edges ('quoted', "shoes.").
  */
-const WORD_SEPARATOR = /[^\p{L}\p{N}'&]+/u;
-const EDGE_PUNCTUATION = /^['&]+|['&]+$/g;
+const WORD_SEPARATOR = /[^\p{L}\p{N}'&.]+/u;
+const EDGE_PUNCTUATION = /^['&.]+|['&.]+$/g;
 
-function splitWords(text: string): string[] {
+export function splitWords(text: string): string[] {
   return text
     .split(WORD_SEPARATOR)
     .map((word) => word.replace(EDGE_PUNCTUATION, ""))
